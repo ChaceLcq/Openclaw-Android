@@ -1,0 +1,11 @@
+.gradle/
+.kotlin/
+**/build/
+local.properties
+.idea/
+**/*.iml
+*.log
+hs_err_pid*.log
+window.xml
+fix-gateway-config.js
+inspect-config.js
