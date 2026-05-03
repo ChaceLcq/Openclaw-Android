@@ -30,6 +30,9 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: Make Gradle wrapper executable
+        run: chmod +x ./gradlew
+
       - name: Build debug APK
         env:
           OPENCLAW_ANDROID_NPM_REGISTRY: https://registry.npmmirror.com
