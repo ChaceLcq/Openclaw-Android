@@ -3,9 +3,13 @@
 [English](README.md) | [中文](README.zh-CN.md)
 
 Openclaw-Android is an Android fork of the upstream OpenClaw companion app.
-It keeps the upstream Android node features and adds an embedded local gateway
-runtime so a phone can run OpenClaw locally instead of only connecting to a
-gateway on another machine.
+Run OpenClaw locally on Android with an embedded gateway runtime, rooted-device
+support, and configurable model provider settings.
+
+This fork keeps the upstream Android node features and adds an embedded local
+gateway runtime so a phone can run OpenClaw locally instead of only connecting
+to a gateway on another machine. It is designed for OpenClaw Android
+experiments, edge AI workflows, and China-friendly model provider configuration.
 
 This fork is prepared for public source release:
 
@@ -15,13 +19,15 @@ This fork is prepared for public source release:
 - API credentials: not bundled; users enter provider settings in the app
 - Gateway control: Disconnect stops the app-owned local gateway before reconnect
 - Runtime data directory: the app private files directory
+- Search keywords: OpenClaw Android, rooted Android, local gateway, edge AI,
+  embedded AI, on-device AI, mobile AI
 
 ## APK Download
 
 Prebuilt APKs can be attached to this repository's GitHub Releases page:
 
 ```text
-https://github.com/<your-github-user>/<your-repo>/releases
+https://github.com/ChaceLcq/Openclaw-Android/releases
 ```
 
 This repository intentionally does not commit `build/` outputs. Build artifacts

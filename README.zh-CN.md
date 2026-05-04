@@ -3,8 +3,10 @@
 [English](README.md) | [中文](README.zh-CN.md)
 
 Openclaw-Android 是基于上游 OpenClaw Android companion app 改造的 Android
-版本。它保留了上游 Android node 能力，并加入了内置本地网关运行能力，让手机可以在本机运行
-OpenClaw，而不只是连接电脑或服务器上的 gateway。
+版本，支持在 Android 设备上以本地 gateway 模式运行 OpenClaw，并提供 root 设备支持和可配置的模型服务设置。
+
+它保留了上游 Android node 能力，并加入了内置本地网关运行能力，让手机可以在本机运行
+OpenClaw，而不只是连接电脑或服务器上的 gateway。这个 fork 面向 OpenClaw Android 实验、边缘 AI 工作流，以及更适合国内模型服务环境的 provider 配置。
 
 这个仓库已经按公开源码发布整理：
 
@@ -14,13 +16,14 @@ OpenClaw，而不只是连接电脑或服务器上的 gateway。
 - API 凭证：不内置，用户在 App 内自行填写
 - 网关控制：点击断开时会停止 App 自己启动的本地 gateway
 - 运行数据目录：App 私有文件目录
+- 搜索关键词：OpenClaw Android、rooted Android、本地 gateway、edge AI、embedded AI、端侧 AI、移动 AI
 
 ## APK 下载
 
 预编译 APK 可以放在本仓库的 GitHub Releases 页面：
 
 ```text
-https://github.com/<your-github-user>/<your-repo>/releases
+https://github.com/ChaceLcq/Openclaw-Android/releases
 ```
 
 这个源码仓库不提交 `build/` 构建输出。APK 应该由用户本地构建，或者作为 GitHub Release
