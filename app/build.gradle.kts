@@ -74,8 +74,8 @@ android {
     versionCode = 2026042700
     versionName = "2026.4.27"
     ndk {
-      // Support all major ABIs — native libs are tiny (~47 KB per ABI)
-      abiFilters += listOf("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
+      // MNN voice runtime is currently bundled from the reference project for arm64 devices.
+      abiFilters += listOf("arm64-v8a")
     }
   }
 

@@ -2,8 +2,12 @@ package ai.openclaw.app.ui
 
 import ai.openclaw.app.MainViewModel
 import ai.openclaw.app.VoiceCaptureMode
+import ai.openclaw.app.voice.LocalMnnAsrStatus
 import ai.openclaw.app.voice.VoiceConversationEntry
 import ai.openclaw.app.voice.VoiceConversationRole
+import ai.openclaw.app.voice.VoiceInputDevice
+import ai.openclaw.app.voice.VoiceInputSelection
+import ai.openclaw.app.voice.VoiceInputSelectionMode
 import android.Manifest
 import android.app.Activity
 import android.content.Context
@@ -34,6 +38,7 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
@@ -96,6 +101,10 @@ fun VoiceTabScreen(viewModel: MainViewModel) {
   val talkModeEnabled by viewModel.talkModeEnabled.collectAsState()
   val talkModeListening by viewModel.talkModeListening.collectAsState()
   val talkModeSpeaking by viewModel.talkModeSpeaking.collectAsState()
+  val voiceInputDevices by viewModel.voiceInputDevices.collectAsState()
+  val voiceInputSelection by viewModel.voiceInputSelection.collectAsState()
+  val voiceInputLabel by viewModel.voiceInputLabel.collectAsState()
+  val voiceMnnAsrStatus by viewModel.voiceMnnAsrStatus.collectAsState()
 
   val hasStreamingAssistant = micConversation.any { it.role == VoiceConversationRole.Assistant && it.isStreaming }
   val showThinkingBubble = micIsSending && !hasStreamingAssistant
@@ -216,6 +225,15 @@ fun VoiceTabScreen(viewModel: MainViewModel) {
           )
         }
       }
+
+      VoiceInputSelector(
+        label = voiceInputLabel,
+        mnnStatusText = voiceMnnAsrStatus.label,
+        mnnAvailable = voiceMnnAsrStatus != LocalMnnAsrStatus.Unavailable,
+        devices = voiceInputDevices,
+        selection = voiceInputSelection,
+        onSelection = viewModel::setVoiceInputSelection,
+      )
 
       // Mic button with input-reactive ring + speaker toggle
       Row(
@@ -399,6 +417,100 @@ fun VoiceTabScreen(viewModel: MainViewModel) {
         }
       }
     }
+  }
+}
+
+@Composable
+private fun VoiceInputSelector(
+  label: String,
+  mnnStatusText: String,
+  mnnAvailable: Boolean,
+  devices: List<VoiceInputDevice>,
+  selection: VoiceInputSelection,
+  onSelection: (VoiceInputSelection) -> Unit,
+) {
+  Column(
+    modifier = Modifier.fillMaxWidth(),
+    verticalArrangement = Arrangement.spacedBy(6.dp),
+    horizontalAlignment = Alignment.CenterHorizontally,
+  ) {
+    Row(
+      modifier = Modifier.fillMaxWidth(),
+      horizontalArrangement = Arrangement.Center,
+      verticalAlignment = Alignment.CenterVertically,
+    ) {
+      Surface(
+        shape = RoundedCornerShape(999.dp),
+        color = mobileSurface,
+        border = BorderStroke(1.dp, mobileBorder),
+      ) {
+        Text(
+          "$label · $mnnStatusText",
+          modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
+          style = mobileCaption1.copy(fontWeight = FontWeight.SemiBold),
+          color = if (mnnAvailable) mobileTextSecondary else mobileWarning,
+        )
+      }
+    }
+
+    LazyRow(
+      modifier = Modifier.fillMaxWidth(),
+      horizontalArrangement = Arrangement.spacedBy(8.dp),
+      contentPadding = PaddingValues(horizontal = 4.dp),
+    ) {
+      item {
+        VoiceInputChoiceButton(
+          text = "Auto USB",
+          selected = selection.mode == VoiceInputSelectionMode.AutoUsb,
+          onClick = { onSelection(VoiceInputSelection(VoiceInputSelectionMode.AutoUsb)) },
+        )
+      }
+      item {
+        VoiceInputChoiceButton(
+          text = "Default",
+          selected = selection.mode == VoiceInputSelectionMode.Default,
+          onClick = { onSelection(VoiceInputSelection(VoiceInputSelectionMode.Default)) },
+        )
+      }
+      items(devices, key = { it.key }) { device ->
+        VoiceInputChoiceButton(
+          text = if (device.isUsb) "${device.label} USB" else device.label,
+          selected = selection.mode == VoiceInputSelectionMode.Device && selection.deviceKey == device.key,
+          onClick = {
+            onSelection(
+              VoiceInputSelection(
+                mode = VoiceInputSelectionMode.Device,
+                deviceKey = device.key,
+              ),
+            )
+          },
+        )
+      }
+    }
+  }
+}
+
+@Composable
+private fun VoiceInputChoiceButton(
+  text: String,
+  selected: Boolean,
+  onClick: () -> Unit,
+) {
+  Button(
+    onClick = onClick,
+    shape = RoundedCornerShape(999.dp),
+    contentPadding = PaddingValues(horizontal = 11.dp, vertical = 4.dp),
+    colors =
+      ButtonDefaults.buttonColors(
+        containerColor = if (selected) mobileAccent else mobileSurface,
+        contentColor = if (selected) Color.White else mobileTextSecondary,
+      ),
+  ) {
+    Text(
+      text = text,
+      style = mobileCaption1.copy(fontWeight = FontWeight.SemiBold),
+      maxLines = 1,
+    )
   }
 }
 

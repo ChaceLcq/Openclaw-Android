@@ -45,9 +45,15 @@ import ai.openclaw.app.node.asStringOrNull
 import ai.openclaw.app.node.invokeErrorFromThrowable
 import ai.openclaw.app.node.parseHexColorArgb
 import ai.openclaw.app.protocol.OpenClawCanvasA2UIAction
+import ai.openclaw.app.voice.LocalMnnAsrEngine
+import ai.openclaw.app.voice.LocalMnnAsrStatus
+import ai.openclaw.app.voice.LocalMnnTtsEngine
 import ai.openclaw.app.voice.MicCaptureManager
 import ai.openclaw.app.voice.TalkModeManager
+import ai.openclaw.app.voice.VoiceAudioInputManager
 import ai.openclaw.app.voice.VoiceConversationEntry
+import ai.openclaw.app.voice.VoiceInputDevice
+import ai.openclaw.app.voice.VoiceInputSelection
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
@@ -94,6 +100,14 @@ class NodeRuntime(
   val location = LocationCaptureManager(appContext)
   val sms = SmsManager(appContext)
   private val json = Json { ignoreUnknownKeys = true }
+  private val voiceAudioInputManager =
+    VoiceAudioInputManager(
+      context = appContext,
+      initialSelection = prefs.voiceInputSelection.value,
+      persistSelection = { prefs.setVoiceInputSelection(it) },
+    )
+  private val localMnnAsr = LocalMnnAsrEngine(appContext)
+  private val localMnnTts = LocalMnnTtsEngine(appContext)
 
   private val externalAudioCaptureActive = MutableStateFlow(false)
   private val _voiceCaptureMode = MutableStateFlow(VoiceCaptureMode.Off)
@@ -383,6 +397,12 @@ class NodeRuntime(
         nodeSession.sendNodeEvent(event = event, payloadJson = payloadJson)
       }
     }
+    scope.launch {
+      prefs.setVoiceMnnAvailable(localMnnAsr.preload())
+    }
+    scope.launch {
+      localMnnTts.preload()
+    }
   }
 
   private val chat: ChatController =
@@ -406,6 +426,8 @@ class NodeRuntime(
         isConnected = { operatorConnected },
         onBeforeSpeak = { micCapture.pauseForTts() },
         onAfterSpeak = { micCapture.resumeAfterTts() },
+        localTtsEngine = localMnnTts,
+        onMnnAvailabilityChanged = { prefs.setVoiceMnnAvailable(it) },
       ).also { speaker ->
         speaker.setPlaybackEnabled(prefs.speakerEnabled.value)
       }
@@ -439,6 +461,12 @@ class NodeRuntime(
         // chat-event path misses the terminal event for this turn.
         voiceReplySpeaker.speakAssistantReply(text)
       },
+      isAssistantTtsReady = {
+        prefs.speakerEnabled.value && localMnnTts.isReady()
+      },
+      localAsrEngine = localMnnAsr,
+      inputManager = voiceAudioInputManager,
+      onMnnAvailabilityChanged = { prefs.setVoiceMnnAvailable(it) },
     )
   }
 
@@ -478,6 +506,10 @@ class NodeRuntime(
       isConnected = { operatorConnected },
       onBeforeSpeak = { micCapture.pauseForTts() },
       onAfterSpeak = { micCapture.resumeAfterTts() },
+      localAsrEngine = localMnnAsr,
+      inputManager = voiceAudioInputManager,
+      localTtsEngine = localMnnTts,
+      onMnnAvailabilityChanged = { prefs.setVoiceMnnAvailable(it) },
     )
   }
 
@@ -492,6 +524,25 @@ class NodeRuntime(
 
   val talkModeStatusText: StateFlow<String>
     get() = talkMode.statusText
+
+  val voiceInputDevices: StateFlow<List<VoiceInputDevice>>
+    get() = voiceAudioInputManager.devices
+
+  val voiceInputSelection: StateFlow<VoiceInputSelection>
+    get() = voiceAudioInputManager.selection
+
+  val voiceInputLabel: StateFlow<String>
+    get() = voiceAudioInputManager.activeInputLabel
+
+  val voiceMnnAvailable: StateFlow<Boolean>
+    get() = prefs.voiceMnnAvailable
+
+  val voiceMnnAsrStatus: StateFlow<LocalMnnAsrStatus>
+    get() = localMnnAsr.status
+
+  fun setVoiceInputSelection(selection: VoiceInputSelection) {
+    voiceAudioInputManager.setSelection(selection)
+  }
 
   private fun syncMainSessionKey(agentId: String?) {
     val resolvedKey = resolveNodeMainSessionKey(agentId)

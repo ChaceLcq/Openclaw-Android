@@ -8,7 +8,11 @@ import ai.openclaw.app.gateway.GatewayEndpoint
 import ai.openclaw.app.node.CameraCaptureManager
 import ai.openclaw.app.node.CanvasController
 import ai.openclaw.app.node.SmsManager
+import ai.openclaw.app.voice.LocalMnnAsrStatus
 import ai.openclaw.app.voice.VoiceConversationEntry
+import ai.openclaw.app.voice.VoiceInputDevice
+import ai.openclaw.app.voice.VoiceInputSelection
+import ai.openclaw.app.voice.VoiceInputSelectionMode
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LifecycleOwner
@@ -122,6 +126,13 @@ class MainViewModel(
   val talkModeListening: StateFlow<Boolean> = runtimeState(initial = false) { it.talkModeListening }
   val talkModeSpeaking: StateFlow<Boolean> = runtimeState(initial = false) { it.talkModeSpeaking }
   val talkModeStatusText: StateFlow<String> = runtimeState(initial = "Off") { it.talkModeStatusText }
+  val voiceInputDevices: StateFlow<List<VoiceInputDevice>> = runtimeState(initial = emptyList()) { it.voiceInputDevices }
+  val voiceInputSelection: StateFlow<VoiceInputSelection> =
+    runtimeState(initial = VoiceInputSelection(VoiceInputSelectionMode.AutoUsb)) { it.voiceInputSelection }
+  val voiceInputLabel: StateFlow<String> = runtimeState(initial = "Mic: Default") { it.voiceInputLabel }
+  val voiceMnnAvailable: StateFlow<Boolean> = runtimeState(initial = true) { it.voiceMnnAvailable }
+  val voiceMnnAsrStatus: StateFlow<LocalMnnAsrStatus> =
+    runtimeState(initial = LocalMnnAsrStatus.Idle) { it.voiceMnnAsrStatus }
 
   val chatSessionKey: StateFlow<String> = runtimeState(initial = "main") { it.chatSessionKey }
   val chatSessionId: StateFlow<String?> = runtimeState(initial = null) { it.chatSessionId }
@@ -311,6 +322,10 @@ class MainViewModel(
 
   fun setTalkModeEnabled(enabled: Boolean) {
     ensureRuntime().setTalkModeEnabled(enabled)
+  }
+
+  fun setVoiceInputSelection(selection: VoiceInputSelection) {
+    ensureRuntime().setVoiceInputSelection(selection)
   }
 
   fun setSpeakerEnabled(enabled: Boolean) {

@@ -5,6 +5,7 @@ import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioTrack
 import android.media.MediaPlayer
+import android.util.Log
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
@@ -40,6 +41,8 @@ internal class TalkAudioPlayer(
     )
 
   companion object {
+    private const val TAG = "TalkAudioPlayer"
+
     internal fun resolvePlaybackMode(
       outputFormat: String?,
       mimeType: String?,
@@ -121,8 +124,8 @@ internal class TalkAudioPlayer(
               .setSampleRate(sampleRate)
               .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
               .build(),
-          ).setTransferMode(AudioTrack.MODE_STATIC)
-          .setBufferSizeInBytes(maxOf(minBufferSize, bytes.size))
+          ).setTransferMode(AudioTrack.MODE_STREAM)
+          .setBufferSizeInBytes(maxOf(minBufferSize, 4096))
           .build()
       val finished = CompletableDeferred<Unit>()
       val playback =
@@ -136,12 +139,19 @@ internal class TalkAudioPlayer(
         )
       register(playback)
       try {
-        val written = track.write(bytes, 0, bytes.size)
-        if (written != bytes.size) {
-          throw IllegalStateException("AudioTrack write failed")
-        }
+        Log.d(TAG, "PCM playback start bytes=${bytes.size} sampleRate=$sampleRate")
         val totalFrames = bytes.size / 2
         track.play()
+        var offset = 0
+        val chunkSize = maxOf(minBufferSize, 4096)
+        while (offset < bytes.size && !finished.isCompleted) {
+          val writeSize = minOf(chunkSize, bytes.size - offset)
+          val written = track.write(bytes, offset, writeSize)
+          if (written <= 0) {
+            throw IllegalStateException("AudioTrack write failed ($written)")
+          }
+          offset += written
+        }
         while (track.playState == AudioTrack.PLAYSTATE_PLAYING) {
           if (track.playbackHeadPosition >= totalFrames) {
             finished.complete(Unit)
@@ -153,6 +163,7 @@ internal class TalkAudioPlayer(
           finished.complete(Unit)
         }
         finished.await()
+        Log.d(TAG, "PCM playback done frames=$totalFrames sampleRate=$sampleRate")
       } finally {
         clear(playback)
         runCatching { track.pause() }
@@ -237,6 +248,7 @@ internal class TalkAudioPlayer(
       }
     }
   }
+
 }
 
 internal sealed interface TalkPlaybackMode {

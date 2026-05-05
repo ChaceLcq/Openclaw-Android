@@ -1,4 +1,4 @@
-package ai.openclaw.app.voice
+﻿package ai.openclaw.app.voice
 
 import ai.openclaw.app.gateway.GatewaySession
 import android.Manifest
@@ -25,6 +25,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -49,6 +51,10 @@ class TalkModeManager(
   private val isConnected: () -> Boolean,
   private val onBeforeSpeak: suspend () -> Unit = {},
   private val onAfterSpeak: suspend () -> Unit = {},
+  private val localAsrEngine: LocalMnnAsrEngine? = null,
+  private val inputManager: VoiceAudioInputManager? = null,
+  private val localTtsEngine: LocalMnnTtsEngine? = null,
+  private val onMnnAvailabilityChanged: (Boolean) -> Unit = {},
 ) {
   companion object {
     private const val tag = "TalkMode"
@@ -56,6 +62,10 @@ class TalkModeManager(
     private const val chatFinalWaitWithSubscribeMs = 45_000L
     private const val chatFinalWaitWithoutSubscribeMs = 6_000L
     private const val maxCachedRunCompletions = 128
+    private const val useMnnTtsForInteractiveReplies = true
+    private const val useGatewayTtsForInteractiveReplies = false
+    private const val mnnTtsWholeMaxChars = 48
+    private const val mnnTtsChunkMaxChars = 56
   }
 
   private val mainHandler = Handler(Looper.getMainLooper())
@@ -79,6 +89,7 @@ class TalkModeManager(
   val lastAssistantText: StateFlow<String?> = _lastAssistantText
 
   private var recognizer: SpeechRecognizer? = null
+  private var usingLocalCapture = false
   private var restartJob: Job? = null
   private var stopRequested = false
   private var listeningMode = false
@@ -118,6 +129,40 @@ class TalkModeManager(
   private var listenWatchdogJob: Job? = null
 
   private var audioFocusRequest: AudioFocusRequest? = null
+  private val localCapture: LocalVoiceCapture? by lazy {
+    val asr = localAsrEngine ?: return@lazy null
+    val inputs = inputManager ?: return@lazy null
+    LocalVoiceCapture(
+      context = context,
+      scope = scope,
+      inputManager = inputs,
+      asrEngine = asr,
+      onStatus = { status -> _statusText.value = status },
+      onListening = { listening -> _isListening.value = listening },
+      onInputLevel = {},
+      onPartial = { partial -> handleTranscript(partial, isFinal = false) },
+      onFinal = { finalText ->
+        val trimmed = finalText.trim()
+        if (trimmed.isNotEmpty() && _isEnabled.value && !finalizeInFlight) {
+          finalizeInFlight = true
+          scope.launch {
+            try {
+              finalizeTranscript(trimmed)
+            } finally {
+              finalizeInFlight = false
+            }
+          }
+        }
+      },
+      onUnavailable = { reason ->
+        if (stopRequested || !_isEnabled.value) return@LocalVoiceCapture
+        onMnnAvailabilityChanged(false)
+        usingLocalCapture = false
+        _statusText.value = "$reason; using system speech"
+        startSystemRecognizer()
+      },
+    )
+  }
   private val audioFocusListener =
     AudioManager.OnAudioFocusChangeListener { focusChange ->
       when (focusChange) {
@@ -287,13 +332,18 @@ class TalkModeManager(
   }
 
   suspend fun speakAssistantReply(text: String) {
-    if (!playbackEnabled) return
+    if (!playbackEnabled) {
+      Log.d(tag, "speaker muted; skip TTS chars=${text.length}")
+      return
+    }
+    Log.d(tag, "speakAssistantReply start chars=${text.length}")
     val playbackToken = playbackGeneration.incrementAndGet()
     cancelActivePlayback()
     ensureConfigLoaded()
     runPlaybackSession(playbackToken) {
       playAssistant(text, playbackToken)
     }
+    Log.d(tag, "speakAssistantReply done")
   }
 
   private fun start() {
@@ -303,18 +353,33 @@ class TalkModeManager(
       listeningMode = true
       Log.d(tag, "start")
 
-      if (!SpeechRecognizer.isRecognitionAvailable(context)) {
-        _statusText.value = "Speech recognizer unavailable"
-        Log.w(tag, "speech recognizer unavailable")
-        return@post
-      }
-
       val micOk =
         ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
           PackageManager.PERMISSION_GRANTED
       if (!micOk) {
         _statusText.value = "Microphone permission required"
         Log.w(tag, "microphone permission required")
+        return@post
+      }
+
+      val local = localCapture
+      if (local != null) {
+        usingLocalCapture = true
+        onMnnAvailabilityChanged(true)
+        _statusText.value = "Starting MNN voice"
+        local.start()
+        return@post
+      }
+
+      startSystemRecognizer()
+    }
+  }
+
+  private fun startSystemRecognizer() {
+    mainHandler.post {
+      if (!SpeechRecognizer.isRecognitionAvailable(context)) {
+        _statusText.value = "Speech recognizer unavailable"
+        Log.w(tag, "speech recognizer unavailable")
         return@post
       }
 
@@ -335,6 +400,8 @@ class TalkModeManager(
     stopRequested = true
     finalizeInFlight = false
     listeningMode = false
+    localCapture?.stop(finalizePending = false)
+    usingLocalCapture = false
     restartJob?.cancel()
     restartJob = null
     silenceJob?.cancel()
@@ -384,6 +451,7 @@ class TalkModeManager(
 
   private fun scheduleRestart(delayMs: Long = 350) {
     if (stopRequested) return
+    if (usingLocalCapture) return
     restartJob?.cancel()
     restartJob =
       scope.launch {
@@ -470,6 +538,8 @@ class TalkModeManager(
     // proceeding. A fire-and-forget post() races with TTS startup: the recognizer
     // stays alive, picks up TTS audio as speech (onBeginningOfSpeech), and the
     // OS kills the AudioTrack write (returns 0) on OxygenOS/OnePlus devices.
+    localCapture?.stopAndJoin(finalizePending = false)
+    usingLocalCapture = false
     withContext(Dispatchers.Main) {
       recognizer?.cancel()
       recognizer?.destroy()
@@ -737,6 +807,25 @@ class TalkModeManager(
 
     try {
       val started = SystemClock.elapsedRealtime()
+      if (useMnnTtsForInteractiveReplies) {
+        if (trySpeakWithMnnTts(cleaned, playbackToken, started)) return
+      } else if (localTtsEngine != null) {
+        Log.d(tag, "mnn tts reserved as fallback for interactive reply")
+      }
+      if (!useGatewayTtsForInteractiveReplies) {
+        val systemFailure =
+          try {
+            speakWithSystemTts(cleaned, directive, playbackToken)
+            Log.d(tag, "system tts ok durMs=${SystemClock.elapsedRealtime() - started}")
+            return
+          } catch (err: Throwable) {
+            if (isPlaybackCancelled(err, playbackToken)) throw err
+            Log.w(tag, "system tts failed; trying MNN TTS: ${err.message ?: err::class.simpleName}")
+            err
+          }
+        if (trySpeakWithMnnTts(cleaned, playbackToken, started)) return
+        throw IllegalStateException("No TTS backend available; system=${systemFailure.message ?: systemFailure::class.simpleName}; mnn=${localTtsEngine?.reason() ?: "unavailable"}")
+      }
       when (val result = talkSpeakClient.synthesize(text = cleaned, directive = directive)) {
         is TalkSpeakResult.Success -> {
           ensurePlaybackActive(playbackToken)
@@ -764,6 +853,143 @@ class TalkModeManager(
       _isSpeaking.value = false
     }
   }
+
+  private suspend fun trySpeakWithMnnTts(
+    text: String,
+    playbackToken: Long,
+    started: Long,
+  ): Boolean {
+    val engine = localTtsEngine ?: return false
+    if (!engine.isReady()) {
+      Log.d(tag, "local MNN TTS is not ready; warming before playback")
+    }
+    val speechText = sanitizeForMnnTts(text)
+    if (speechText.isBlank()) {
+      Log.w(tag, "Skip MNN TTS because speech text is empty after sanitizing")
+      return false
+    }
+    if (speechText.length <= mnnTtsWholeMaxChars) {
+      val wholeStarted = SystemClock.elapsedRealtime()
+      val wholeAudio = engine.synthesize(speechText)
+      if (wholeAudio != null) {
+        ensurePlaybackActive(playbackToken)
+        Log.d(
+          tag,
+          "mnn tts whole ready chars=${speechText.length} synthPlusInitMs=${SystemClock.elapsedRealtime() - wholeStarted}",
+        )
+        talkAudioPlayer.play(wholeAudio)
+        ensurePlaybackActive(playbackToken)
+        onMnnAvailabilityChanged(true)
+        Log.d(tag, "mnn tts ok mode=whole durMs=${SystemClock.elapsedRealtime() - started}")
+        return true
+      }
+      onMnnAvailabilityChanged(false)
+      Log.w(tag, "Whole-sentence MNN TTS generation failed: ${engine.reason() ?: "unknown"}")
+      return false
+    }
+
+    val chunks = splitForMnnTts(speechText)
+    if (chunks.isEmpty()) return false
+    Log.d(tag, "mnn tts streaming chunks=${chunks.size} chars=${speechText.length}")
+    var playedAny = false
+    coroutineScope {
+      var pending =
+        async(Dispatchers.IO) {
+          val chunkStarted = SystemClock.elapsedRealtime()
+          val audio = engine.synthesize(chunks.first())
+          Triple(0, audio, SystemClock.elapsedRealtime() - chunkStarted)
+        }
+      for (index in chunks.indices) {
+        ensurePlaybackActive(playbackToken)
+        val (chunkIndex, localAudio, synthMs) = pending.await()
+        val nextIndex = index + 1
+        pending =
+          if (nextIndex < chunks.size) {
+            async(Dispatchers.IO) {
+              val chunkStarted = SystemClock.elapsedRealtime()
+              val audio = engine.synthesize(chunks[nextIndex])
+              Triple(nextIndex, audio, SystemClock.elapsedRealtime() - chunkStarted)
+            }
+          } else {
+            async(Dispatchers.IO) { Triple(nextIndex, null, 0L) }
+          }
+        if (localAudio == null) {
+          onMnnAvailabilityChanged(false)
+          Log.d(tag, "mnn tts unavailable at chunk ${chunkIndex + 1}/${chunks.size}: ${engine.reason() ?: "unknown"}")
+          if (!playedAny) return@coroutineScope
+          continue
+        }
+        ensurePlaybackActive(playbackToken)
+        Log.d(
+          tag,
+          "mnn tts chunk ready ${chunkIndex + 1}/${chunks.size} chars=${chunks[chunkIndex].length} synthPlusInitMs=$synthMs",
+        )
+        talkAudioPlayer.play(localAudio)
+        ensurePlaybackActive(playbackToken)
+        playedAny = true
+      }
+    }
+    if (playedAny) {
+      onMnnAvailabilityChanged(true)
+      Log.d(tag, "mnn tts ok chunks=${chunks.size} durMs=${SystemClock.elapsedRealtime() - started}")
+    }
+    return playedAny
+  }
+
+  private fun sanitizeForMnnTts(text: String): String =
+    text
+      .replace(Regex("(?i)\\bTTS\\b"), "语音播报")
+      .replace(Regex("(?i)\\bASR\\b"), "语音识别")
+      .replace(Regex("(?i)\\bAPI\\b"), "接口")
+      .replace(Regex("(?i)\\bElevenLabs\\b"), "语音服务")
+      .replace(Regex("(?i)\\bEdge\\b"), "微软语音")
+      .replace(Regex("[*_`#>\\[\\]{}()]+"), " ")
+      .filter { char ->
+        val type = Character.getType(char)
+        type != Character.SURROGATE.toInt() &&
+          type != Character.OTHER_SYMBOL.toInt() &&
+          type != Character.NON_SPACING_MARK.toInt()
+      }.replace(Regex("\\s+"), " ")
+      .trim()
+
+  private fun splitForMnnTts(text: String): List<String> {
+    val normalized = text.replace(Regex("\\s+"), " ").trim()
+    if (normalized.isEmpty()) return emptyList()
+    return splitNormalizedForMnnTts(normalized)
+  }
+  private fun splitNormalizedForMnnTts(normalized: String): List<String> {
+    val chunks = mutableListOf<String>()
+    val current = StringBuilder()
+
+    fun flush() {
+      val chunk = current.toString().trim()
+      if (chunk.isNotEmpty()) chunks.add(chunk)
+      current.clear()
+    }
+
+    for (char in normalized) {
+      current.append(char)
+      val shouldBreak =
+        isMnnTtsSentenceBreak(char) ||
+          current.length >= mnnTtsChunkMaxChars
+      if (shouldBreak) flush()
+    }
+    flush()
+    return chunks
+  }
+
+  private fun isMnnTtsSentenceBreak(char: Char): Boolean =
+    char == '\u3002' ||
+      char == '\uff01' ||
+      char == '\uff1f' ||
+      char == '!' ||
+      char == '?' ||
+      char == '\uff1b' ||
+      char == ';' ||
+      char == '\uff0c' ||
+      char == ',' ||
+      char == '\u3001' ||
+      char == '\n'
 
   private suspend fun runPlaybackSession(
     playbackToken: Long,

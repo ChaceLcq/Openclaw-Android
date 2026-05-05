@@ -2,6 +2,8 @@
 
 package ai.openclaw.app
 
+import ai.openclaw.app.voice.VoiceInputSelection
+import ai.openclaw.app.voice.VoiceInputSelectionMode
 import android.content.Context
 import android.content.SharedPreferences
 import androidx.core.content.edit
@@ -48,6 +50,9 @@ class SecurePrefs(
       "notifications.forwarding.maxEventsPerMinute"
     private const val notificationsForwardingSessionKeyKey = "notifications.forwarding.sessionKey"
     private const val voiceMicEnabledKey = "voice.micEnabled"
+    private const val voiceInputModeKey = "voice.input.mode"
+    private const val voiceInputDeviceKey = "voice.input.deviceKey"
+    private const val voiceMnnAvailableKey = "voice.mnn.available"
   }
 
   private val appContext = context.applicationContext
@@ -199,6 +204,12 @@ class SecurePrefs(
 
   private val _speakerEnabled = MutableStateFlow(plainPrefs.getBoolean("voice.speakerEnabled", true))
   val speakerEnabled: StateFlow<Boolean> = _speakerEnabled
+
+  private val _voiceInputSelection = MutableStateFlow(loadVoiceInputSelection())
+  val voiceInputSelection: StateFlow<VoiceInputSelection> = _voiceInputSelection
+
+  private val _voiceMnnAvailable = MutableStateFlow(plainPrefs.getBoolean(voiceMnnAvailableKey, true))
+  val voiceMnnAvailable: StateFlow<Boolean> = _voiceMnnAvailable
 
   fun setLastDiscoveredStableId(value: String) {
     val trimmed = value.trim()
@@ -587,6 +598,19 @@ class SecurePrefs(
     _speakerEnabled.value = value
   }
 
+  fun setVoiceInputSelection(selection: VoiceInputSelection) {
+    plainPrefs.edit {
+      putString(voiceInputModeKey, selection.mode.rawValue)
+      putString(voiceInputDeviceKey, selection.deviceKey.orEmpty())
+    }
+    _voiceInputSelection.value = selection
+  }
+
+  fun setVoiceMnnAvailable(value: Boolean) {
+    plainPrefs.edit { putBoolean(voiceMnnAvailableKey, value) }
+    _voiceMnnAvailable.value = value
+  }
+
   private fun loadNotificationForwardingPackages(): Set<String> {
     val raw = plainPrefs.getString(notificationsForwardingPackagesKey, null)?.trim()
     if (raw.isNullOrEmpty()) {
@@ -652,6 +676,16 @@ class SecurePrefs(
     }
 
     return resolved
+  }
+
+  private fun loadVoiceInputSelection(): VoiceInputSelection {
+    val mode = VoiceInputSelectionMode.fromRawValue(plainPrefs.getString(voiceInputModeKey, null))
+    val deviceKey =
+      plainPrefs
+        .getString(voiceInputDeviceKey, null)
+        ?.trim()
+        ?.takeIf { it.isNotEmpty() }
+    return VoiceInputSelection(mode = mode, deviceKey = deviceKey)
   }
 
   private fun loadLocationMode(): LocationMode {
