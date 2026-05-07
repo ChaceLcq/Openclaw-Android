@@ -64,8 +64,8 @@ class TalkModeManager(
     private const val maxCachedRunCompletions = 128
     private const val useMnnTtsForInteractiveReplies = true
     private const val useGatewayTtsForInteractiveReplies = false
-    private const val mnnTtsWholeMaxChars = 48
-    private const val mnnTtsChunkMaxChars = 56
+    private const val mnnTtsWholeMaxChars = 24
+    private const val mnnTtsChunkMaxChars = 28
   }
 
   private val mainHandler = Handler(Looper.getMainLooper())
@@ -870,7 +870,7 @@ class TalkModeManager(
     }
     if (speechText.length <= mnnTtsWholeMaxChars) {
       val wholeStarted = SystemClock.elapsedRealtime()
-      val wholeAudio = engine.synthesize(speechText)
+      val wholeAudio = engine.synthesize(speechText) { playbackEnabled && playbackToken == playbackGeneration.get() }
       if (wholeAudio != null) {
         ensurePlaybackActive(playbackToken)
         Log.d(
@@ -896,7 +896,7 @@ class TalkModeManager(
       var pending =
         async(Dispatchers.IO) {
           val chunkStarted = SystemClock.elapsedRealtime()
-          val audio = engine.synthesize(chunks.first())
+          val audio = engine.synthesize(chunks.first()) { playbackEnabled && playbackToken == playbackGeneration.get() }
           Triple(0, audio, SystemClock.elapsedRealtime() - chunkStarted)
         }
       for (index in chunks.indices) {
@@ -907,7 +907,7 @@ class TalkModeManager(
           if (nextIndex < chunks.size) {
             async(Dispatchers.IO) {
               val chunkStarted = SystemClock.elapsedRealtime()
-              val audio = engine.synthesize(chunks[nextIndex])
+              val audio = engine.synthesize(chunks[nextIndex]) { playbackEnabled && playbackToken == playbackGeneration.get() }
               Triple(nextIndex, audio, SystemClock.elapsedRealtime() - chunkStarted)
             }
           } else {

@@ -17,6 +17,8 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.viewModelScope
+import com.agenew.usbcamera.MouthCameraState
+import com.agenew.widget.SimpleUVCCameraTextureView
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -133,6 +135,10 @@ class MainViewModel(
   val voiceMnnAvailable: StateFlow<Boolean> = runtimeState(initial = true) { it.voiceMnnAvailable }
   val voiceMnnAsrStatus: StateFlow<LocalMnnAsrStatus> =
     runtimeState(initial = LocalMnnAsrStatus.Idle) { it.voiceMnnAsrStatus }
+  val mouthAsrReadyText: StateFlow<String> =
+    runtimeState(initial = "Voice inactive") { it.mouthAsrReadyText }
+  val mouthCameraState: StateFlow<MouthCameraState> =
+    runtimeState(initial = MouthCameraState()) { it.mouthCameraState }
 
   val chatSessionKey: StateFlow<String> = runtimeState(initial = "main") { it.chatSessionKey }
   val chatSessionId: StateFlow<String?> = runtimeState(initial = null) { it.chatSessionId }
@@ -291,6 +297,18 @@ class MainViewModel(
 
   fun setVoiceScreenActive(active: Boolean) {
     ensureRuntime().setVoiceScreenActive(active)
+  }
+
+  fun setMouthAsrActive(active: Boolean) {
+    ensureRuntime().setMouthAsrActive(active)
+  }
+
+  fun attachMouthCameraPreview(view: SimpleUVCCameraTextureView) {
+    ensureRuntime().attachMouthCameraPreview(view)
+  }
+
+  fun detachMouthCameraPreview(view: SimpleUVCCameraTextureView) {
+    runtimeRef.value?.detachMouthCameraPreview(view)
   }
 
   fun handleAssistantLaunch(request: AssistantLaunchRequest) {

@@ -1,13 +1,9 @@
 package ai.openclaw.app.ui
 
 import ai.openclaw.app.MainViewModel
-import ai.openclaw.app.VoiceCaptureMode
 import ai.openclaw.app.voice.LocalMnnAsrStatus
 import ai.openclaw.app.voice.VoiceConversationEntry
 import ai.openclaw.app.voice.VoiceConversationRole
-import ai.openclaw.app.voice.VoiceInputDevice
-import ai.openclaw.app.voice.VoiceInputSelection
-import ai.openclaw.app.voice.VoiceInputSelectionMode
 import android.Manifest
 import android.app.Activity
 import android.content.Context
@@ -19,13 +15,13 @@ import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
@@ -38,22 +34,15 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.VolumeOff
-import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material.icons.filled.MicOff
-import androidx.compose.material.icons.filled.RecordVoiceOver
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -67,18 +56,24 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import kotlin.math.max
+import com.agenew.usbcamera.MouthCameraState
+import com.agenew.usbcamera.MouthCameraStatus
+import com.agenew.widget.SimpleUVCCameraTextureView
 
 @Composable
 fun VoiceTabScreen(viewModel: MainViewModel) {
@@ -88,57 +83,46 @@ fun VoiceTabScreen(viewModel: MainViewModel) {
   val listState = rememberLazyListState()
 
   val gatewayStatus by viewModel.statusText.collectAsState()
-  val voiceCaptureMode by viewModel.voiceCaptureMode.collectAsState()
-  val micEnabled by viewModel.micEnabled.collectAsState()
-  val micCooldown by viewModel.micCooldown.collectAsState()
-  val speakerEnabled by viewModel.speakerEnabled.collectAsState()
-  val micStatusText by viewModel.micStatusText.collectAsState()
   val micLiveTranscript by viewModel.micLiveTranscript.collectAsState()
   val micQueuedMessages by viewModel.micQueuedMessages.collectAsState()
   val micConversation by viewModel.micConversation.collectAsState()
-  val micInputLevel by viewModel.micInputLevel.collectAsState()
   val micIsSending by viewModel.micIsSending.collectAsState()
-  val talkModeEnabled by viewModel.talkModeEnabled.collectAsState()
-  val talkModeListening by viewModel.talkModeListening.collectAsState()
-  val talkModeSpeaking by viewModel.talkModeSpeaking.collectAsState()
-  val voiceInputDevices by viewModel.voiceInputDevices.collectAsState()
-  val voiceInputSelection by viewModel.voiceInputSelection.collectAsState()
   val voiceInputLabel by viewModel.voiceInputLabel.collectAsState()
   val voiceMnnAsrStatus by viewModel.voiceMnnAsrStatus.collectAsState()
+  val mouthAsrReadyText by viewModel.mouthAsrReadyText.collectAsState()
+  val mouthCameraState by viewModel.mouthCameraState.collectAsState()
 
   val hasStreamingAssistant = micConversation.any { it.role == VoiceConversationRole.Assistant && it.isStreaming }
   val showThinkingBubble = micIsSending && !hasStreamingAssistant
 
   var hasMicPermission by remember { mutableStateOf(context.hasRecordAudioPermission()) }
-  var pendingVoicePermissionAction by remember { mutableStateOf<PendingVoicePermissionAction?>(null) }
+
+  val requestMicPermission =
+    rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+      hasMicPermission = granted
+      if (granted) viewModel.setMouthAsrActive(true)
+    }
 
   DisposableEffect(lifecycleOwner, context) {
     val observer =
       LifecycleEventObserver { _, event ->
         if (event == Lifecycle.Event.ON_RESUME) {
           hasMicPermission = context.hasRecordAudioPermission()
+          if (hasMicPermission) viewModel.setMouthAsrActive(true)
         }
       }
     lifecycleOwner.lifecycle.addObserver(observer)
+    if (hasMicPermission) {
+      viewModel.setMouthAsrActive(true)
+    } else {
+      requestMicPermission.launch(Manifest.permission.RECORD_AUDIO)
+    }
     onDispose {
       lifecycleOwner.lifecycle.removeObserver(observer)
-      // Manual mic is tied to the Voice tab; Talk Mode is explicit and can continue.
+      viewModel.setMouthAsrActive(false)
       viewModel.setVoiceScreenActive(false)
     }
   }
-
-  val requestMicPermission =
-    rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-      hasMicPermission = granted
-      if (granted) {
-        when (pendingVoicePermissionAction) {
-          PendingVoicePermissionAction.ManualMic -> viewModel.setMicEnabled(true)
-          PendingVoicePermissionAction.TalkMode -> viewModel.setTalkModeEnabled(true)
-          null -> Unit
-        }
-      }
-      pendingVoicePermissionAction = null
-    }
 
   LaunchedEffect(micConversation.size, showThinkingBubble) {
     val total = micConversation.size + if (showThinkingBubble) 1 else 0
@@ -157,6 +141,17 @@ fun VoiceTabScreen(viewModel: MainViewModel) {
         .padding(horizontal = 20.dp, vertical = 14.dp),
     verticalArrangement = Arrangement.spacedBy(10.dp),
   ) {
+    Row(
+      modifier = Modifier.fillMaxWidth(),
+      horizontalArrangement = Arrangement.End,
+    ) {
+      MouthCameraPreview(
+        state = mouthCameraState,
+        attachPreview = viewModel::attachMouthCameraPreview,
+        detachPreview = viewModel::detachMouthCameraPreview,
+      )
+    }
+
     LazyColumn(
       state = listState,
       modifier = Modifier.fillMaxWidth().weight(1f),
@@ -180,12 +175,16 @@ fun VoiceTabScreen(viewModel: MainViewModel) {
                 tint = mobileTextTertiary,
               )
               Text(
-                "Tap mic or Talk",
+                if (mouthAsrReadyText == "Ready to speak") "Mouth ASR ready" else mouthAsrReadyText,
                 style = mobileHeadline,
                 color = mobileTextSecondary,
               )
               Text(
-                "Mic sends turns; Talk keeps the conversation open.",
+                if (mouthAsrReadyText == "Ready to speak") {
+                  "Speak to the camera to send a voice turn."
+                } else {
+                  "Models are warming up. The mic will start when ready."
+                },
                 style = mobileCallout,
                 color = mobileTextTertiary,
               )
@@ -230,158 +229,31 @@ fun VoiceTabScreen(viewModel: MainViewModel) {
         label = voiceInputLabel,
         mnnStatusText = voiceMnnAsrStatus.label,
         mnnAvailable = voiceMnnAsrStatus != LocalMnnAsrStatus.Unavailable,
-        devices = voiceInputDevices,
-        selection = voiceInputSelection,
-        onSelection = viewModel::setVoiceInputSelection,
       )
 
-      // Mic button with input-reactive ring + speaker toggle
-      Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically,
-      ) {
-        // Speaker toggle
-        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-          IconButton(
-            onClick = { viewModel.setSpeakerEnabled(!speakerEnabled) },
-            modifier = Modifier.size(48.dp),
-            colors =
-              IconButtonDefaults.iconButtonColors(
-                containerColor = if (speakerEnabled) mobileSurface else mobileDangerSoft,
-              ),
-          ) {
-            Icon(
-              imageVector = if (speakerEnabled) Icons.AutoMirrored.Filled.VolumeUp else Icons.AutoMirrored.Filled.VolumeOff,
-              contentDescription = if (speakerEnabled) "Mute speaker" else "Unmute speaker",
-              modifier = Modifier.size(22.dp),
-              tint = if (speakerEnabled) mobileTextSecondary else mobileDanger,
-            )
-          }
-          Text(
-            if (speakerEnabled) "Speaker" else "Muted",
-            style = mobileCaption2,
-            color = if (speakerEnabled) mobileTextTertiary else mobileDanger,
-          )
-        }
-
-        // Ring size = 68dp base + up to 22dp driven by mic input level.
-        // The outer Box is fixed at 90dp (max ring size) so the ring never shifts the button.
-        Box(
-          modifier = Modifier.padding(horizontal = 16.dp).size(90.dp),
-          contentAlignment = Alignment.Center,
-        ) {
-          if (micEnabled) {
-            val ringLevel = micInputLevel.coerceIn(0f, 1f)
-            val ringSize = 68.dp + (22.dp * max(ringLevel, 0.05f))
-            Box(
-              modifier =
-                Modifier
-                  .size(ringSize)
-                  .background(mobileAccent.copy(alpha = 0.12f + 0.14f * ringLevel), CircleShape),
-            )
-          }
-          Button(
-            onClick = {
-              if (micCooldown) return@Button
-              if (micEnabled) {
-                viewModel.setMicEnabled(false)
-                return@Button
-              }
-              if (hasMicPermission) {
-                viewModel.setMicEnabled(true)
-              } else {
-                pendingVoicePermissionAction = PendingVoicePermissionAction.ManualMic
-                requestMicPermission.launch(Manifest.permission.RECORD_AUDIO)
-              }
-            },
-            enabled = !micCooldown,
-            shape = CircleShape,
-            contentPadding = PaddingValues(0.dp),
-            modifier = Modifier.size(60.dp),
-            colors =
-              ButtonDefaults.buttonColors(
-                containerColor =
-                  if (micCooldown) {
-                    mobileTextSecondary
-                  } else if (micEnabled) {
-                    mobileDanger
-                  } else {
-                    mobileAccent
-                  },
-                contentColor = Color.White,
-                disabledContainerColor = mobileTextSecondary,
-                disabledContentColor = Color.White.copy(alpha = 0.5f),
-              ),
-          ) {
-            Icon(
-              imageVector = if (micEnabled) Icons.Default.MicOff else Icons.Default.Mic,
-              contentDescription = if (micEnabled) "Turn microphone off" else "Turn microphone on",
-              modifier = Modifier.size(24.dp),
-            )
-          }
-        }
-
-        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-          IconButton(
-            onClick = {
-              if (talkModeEnabled) {
-                viewModel.setTalkModeEnabled(false)
-                return@IconButton
-              }
-              if (hasMicPermission) {
-                viewModel.setTalkModeEnabled(true)
-              } else {
-                pendingVoicePermissionAction = PendingVoicePermissionAction.TalkMode
-                requestMicPermission.launch(Manifest.permission.RECORD_AUDIO)
-              }
-            },
-            modifier = Modifier.size(48.dp),
-            colors =
-              IconButtonDefaults.iconButtonColors(
-                containerColor = if (talkModeEnabled) mobileSuccessSoft else mobileSurface,
-              ),
-          ) {
-            Icon(
-              imageVector = Icons.Default.RecordVoiceOver,
-              contentDescription = if (talkModeEnabled) "Turn Talk Mode off" else "Turn Talk Mode on",
-              modifier = Modifier.size(22.dp),
-              tint = if (talkModeEnabled) mobileSuccess else mobileTextSecondary,
-            )
-          }
-          Spacer(modifier = Modifier.height(4.dp))
-          Text(
-            if (talkModeEnabled) "Talk on" else "Talk",
-            style = mobileCaption2,
-            color = if (talkModeEnabled) mobileSuccess else mobileTextTertiary,
-          )
-        }
-      }
-
-      // Status + labels
       val queueCount = micQueuedMessages.size
       val stateText =
         when {
-          voiceCaptureMode == VoiceCaptureMode.TalkMode && talkModeSpeaking -> "Talk speaking"
-          voiceCaptureMode == VoiceCaptureMode.TalkMode && talkModeListening -> "Talk listening"
-          voiceCaptureMode == VoiceCaptureMode.TalkMode -> "Talk on"
           queueCount > 0 -> "$queueCount queued"
           micIsSending -> "Sending"
-          micCooldown -> "Cooldown"
-          micEnabled -> "Listening"
-          else -> "Mic off"
+          !hasMicPermission -> "Mic permission required"
+          mouthAsrReadyText != "Ready to speak" -> mouthAsrReadyText
+          mouthCameraState.isSpeaking -> "Mouth speaking"
+          else -> mouthCameraState.message
         }
       val stateColor =
         when {
-          voiceCaptureMode == VoiceCaptureMode.TalkMode -> mobileSuccess
-          micEnabled -> mobileSuccess
           micIsSending -> mobileAccent
+          mouthAsrReadyText != "Ready to speak" -> mobileWarning
+          mouthCameraState.isSpeaking -> mobileSuccess
+          mouthCameraState.status == MouthCameraStatus.NoCamera -> mobileWarning
+          mouthCameraState.status == MouthCameraStatus.NoFace -> mobileWarning
           else -> mobileTextSecondary
         }
       Surface(
         shape = RoundedCornerShape(999.dp),
-        color = if (micEnabled || talkModeEnabled) mobileSuccessSoft else mobileSurface,
-        border = BorderStroke(1.dp, if (micEnabled || talkModeEnabled) mobileSuccess.copy(alpha = 0.3f) else mobileBorder),
+        color = if (mouthCameraState.isSpeaking) mobileSuccessSoft else mobileSurface,
+        border = BorderStroke(1.dp, if (mouthCameraState.isSpeaking) mobileSuccess.copy(alpha = 0.3f) else mobileBorder),
       ) {
         Text(
           "$gatewayStatus · $stateText",
@@ -425,9 +297,6 @@ private fun VoiceInputSelector(
   label: String,
   mnnStatusText: String,
   mnnAvailable: Boolean,
-  devices: List<VoiceInputDevice>,
-  selection: VoiceInputSelection,
-  onSelection: (VoiceInputSelection) -> Unit,
 ) {
   Column(
     modifier = Modifier.fillMaxWidth(),
@@ -452,38 +321,49 @@ private fun VoiceInputSelector(
         )
       }
     }
+  }
+}
 
-    LazyRow(
-      modifier = Modifier.fillMaxWidth(),
-      horizontalArrangement = Arrangement.spacedBy(8.dp),
-      contentPadding = PaddingValues(horizontal = 4.dp),
-    ) {
-      item {
-        VoiceInputChoiceButton(
-          text = "Auto USB",
-          selected = selection.mode == VoiceInputSelectionMode.AutoUsb,
-          onClick = { onSelection(VoiceInputSelection(VoiceInputSelectionMode.AutoUsb)) },
-        )
-      }
-      item {
-        VoiceInputChoiceButton(
-          text = "Default",
-          selected = selection.mode == VoiceInputSelectionMode.Default,
-          onClick = { onSelection(VoiceInputSelection(VoiceInputSelectionMode.Default)) },
-        )
-      }
-      items(devices, key = { it.key }) { device ->
-        VoiceInputChoiceButton(
-          text = if (device.isUsb) "${device.label} USB" else device.label,
-          selected = selection.mode == VoiceInputSelectionMode.Device && selection.deviceKey == device.key,
-          onClick = {
-            onSelection(
-              VoiceInputSelection(
-                mode = VoiceInputSelectionMode.Device,
-                deviceKey = device.key,
-              ),
-            )
-          },
+@Composable
+private fun MouthCameraPreview(
+  state: MouthCameraState,
+  attachPreview: (SimpleUVCCameraTextureView) -> Unit,
+  detachPreview: (SimpleUVCCameraTextureView) -> Unit,
+) {
+  val borderColor =
+    when (state.status) {
+      MouthCameraStatus.Speaking -> mobileSuccess
+      MouthCameraStatus.NoCamera,
+      MouthCameraStatus.NoFace,
+      -> mobileWarning
+      else -> mobileBorderStrong
+    }
+  Surface(
+    modifier = Modifier.size(width = 132.dp, height = 96.dp),
+    shape = RoundedCornerShape(8.dp),
+    color = Color.Black,
+    border = BorderStroke(1.dp, borderColor.copy(alpha = 0.75f)),
+  ) {
+    Box(modifier = Modifier.fillMaxSize()) {
+      AndroidView(
+        factory = { context ->
+          SimpleUVCCameraTextureView(context).also(attachPreview)
+        },
+        modifier = Modifier.fillMaxSize(),
+        onRelease = detachPreview,
+      )
+      MouthDetectionOverlay(state = state)
+      Surface(
+        modifier = Modifier.align(Alignment.BottomEnd).padding(6.dp),
+        shape = RoundedCornerShape(999.dp),
+        color = Color.Black.copy(alpha = 0.55f),
+      ) {
+        Text(
+          state.message,
+          modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+          style = mobileCaption2.copy(fontWeight = FontWeight.SemiBold),
+          color = Color.White,
+          maxLines = 1,
         )
       }
     }
@@ -491,32 +371,39 @@ private fun VoiceInputSelector(
 }
 
 @Composable
-private fun VoiceInputChoiceButton(
-  text: String,
-  selected: Boolean,
-  onClick: () -> Unit,
-) {
-  Button(
-    onClick = onClick,
-    shape = RoundedCornerShape(999.dp),
-    contentPadding = PaddingValues(horizontal = 11.dp, vertical = 4.dp),
-    colors =
-      ButtonDefaults.buttonColors(
-        containerColor = if (selected) mobileAccent else mobileSurface,
-        contentColor = if (selected) Color.White else mobileTextSecondary,
-      ),
-  ) {
-    Text(
-      text = text,
-      style = mobileCaption1.copy(fontWeight = FontWeight.SemiBold),
-      maxLines = 1,
+private fun MouthDetectionOverlay(state: MouthCameraState) {
+  val faceColor = if (state.isSpeaking) mobileSuccess else Color.Yellow
+  Canvas(modifier = Modifier.fillMaxSize()) {
+    val faceBox = state.faceBox ?: return@Canvas
+    val left = faceBox.left * size.width
+    val top = faceBox.top * size.height
+    val right = faceBox.right * size.width
+    val bottom = faceBox.bottom * size.height
+    drawRect(
+      color = faceColor,
+      topLeft = Offset(left, top),
+      size = Size(maxOf(1f, right - left), maxOf(1f, bottom - top)),
+      style = Stroke(width = 2.dp.toPx()),
     )
-  }
-}
 
-private enum class PendingVoicePermissionAction {
-  ManualMic,
-  TalkMode,
+    val points = state.mouthPoints
+    if (points.size < 12) return@Canvas
+    for (index in points.indices step 4) {
+      if (index + 3 >= points.size) break
+      val x1 = points[index] * size.width
+      val y1 = points[index + 1] * size.height
+      val x2 = points[index + 2] * size.width
+      val y2 = points[index + 3] * size.height
+      drawLine(
+        color = Color.Cyan,
+        start = Offset(x1, y1),
+        end = Offset(x2, y2),
+        strokeWidth = 2.dp.toPx(),
+      )
+      drawCircle(color = Color.Cyan, radius = 3.dp.toPx(), center = Offset(x1, y1))
+      drawCircle(color = Color.Cyan, radius = 3.dp.toPx(), center = Offset(x2, y2))
+    }
+  }
 }
 
 @Composable

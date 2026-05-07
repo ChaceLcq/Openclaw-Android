@@ -1,0 +1,164 @@
+Source PDF: product-docs/pdf/Agenewtech_H1504TQ_Smart Module Specification_V1.5.pdf
+Model: H1504TQ
+Language: English
+Version: V1.5
+Extractor: pdfplumber
+Extracted at: 2026-05-07T09:48:57
+
+--- Page 1 ---
+AGENEWTECH
+H1504TQ
+Smart Module Specification_V1.5
+www.agenewtech.com
+
+--- Page 2 ---
+H1504TQ_Smart Module Specification
+Our aim is to provide customers with timely and comprehensive service. For any assistance, please
+contact our company headquarters:
+Wuxi Sunning Technology Co., Ltd. (Abbreviation: Agenew)
+No.52, Zone C, Huigu Pioneer Park, Huishan Economic Development Zone, Wuxi
+Postal Code: 214174
+PhoneNum: +86 0510 8235 0372 Mailbox: Asupport@agenewtech.com
+Introduction
+AGENEW OFFERS THE DOCUMENT AS A SERVICE TO ITS CUSTOMERS. CUSTOMERS MUST DESIGN THEIR PRODUCTS
+ACCORDING TO THE SPECIFICATIONS AND PARAMETERS PROVIDED IN THE DOCUMENTS. AGENEW SHALL NOT BE LIABLE
+FOR ANY DAMAGE CAUSED BY FAILURE TO COMPLY WITH RELEVANT OPERATION OR DESIGN SPECIFICATIONS. AGENEW
+HAS THE RIGHT TO UPDATE THE DOCUMENT BEFORE IT IS ANNOUNCED.
+Disclaimers
+AGENEW MAKES EFFORT TO ENSURE THE INTEGRITY, ACCURACY, TIMELINESS OR UTILITY OF THE FUNCTIONS UNDER
+DEVELOPMENT, BUT DOES NOT EXCLUDE THE POSSIBILITY OF ERRORS OR OMISSIONS OF THE ABOVE FUNCTIONS. UNLESS
+OTHERWISE SPECIFIED VALID AGREEMENTS, AGENEW MAKES NO IMPLIED OR EXPRESS GUARANTEE FOR THE USE OF
+FUNCTIONS UNDER DEVELOPMENT. TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAWS, AGENEW SHALL NOT BE
+LIABLE FOR ANY LOSS OR DAMAGE SUFFERED DUE TO THE USE OF THE FUNCTIONS UNDER DEVELOPMENT, WHETHER SUCH
+LOSS OR DAMAGE IS FORESEEABLE OR NOT.
+Copyright
+THE INFORMATION CONTAINED HERE IS PROPRIETARY TECHNICAL INFORMATION OF WUXI SUNNING TECHNOLOGY
+CO.,LTD. ANY COPIES AND REPRINTS THIS DOCUMENT WITHOUT THE PERMISSION OF AGENEW WILL BEAR LEGAL
+RESPONSIBILITY.
+Copyright © Wuxi Sunning Technology Co., Ltd. 2026. All rights reserved.
+WWW.AGENEWTECH.COM
+
+--- Page 3 ---
+H1504TQ_Smart Module Specification
+About the Document
+History
+Version Data Author Description
+- 2025-07-28 Wu Danyi Document creation
+1.0 2025-07-30 Wu Danyi Controlled Copy
+1.1 2025-08-06 Wu Danyi Modify the description of UART0 and UART1
+1.2 2025-08-25 Wu Danyi Modification area
+1.3 2025-10-30 Wu Danyi Update the Android version and memory type
+1.4 2026-01-13 Wu Danyi Add Latin American frequency band
+1.5 2026-03-24 Chen Yun Change company name
+WWW.AGENEWTECH.COM
+
+--- Page 4 ---
+H1504TQ_Smart Module Specification
+H1504TQ
+Multi-network Smart 4G module
+Supports Wi-Fi & BT
+H1504TQ is a multi-network Smart LTE Cat 4 module based on MediaTek quad-core ARM Cortex-A53 processor (with a
+maximum clock speed of 1.3GHz) launched by Agenew, equipped with Android 10 or 13 operating system. It has powerful
+performance, neon engine processing, and 2D/3D graphics acceleration processing capabilities, fully meeting customers'
+needs for high speed and multimedia functionality in industrial and consumer applications.
+H1504TQ supports full coverage of all network systems, WI-FI 802.11a/b/g/n, and BT4.2 near-field wireless
+communication. In addition, the H1504TQ also has audio and video input and output interfaces and rich GPIO interfaces. It
+also supports a variety of audio and video codecs. The main screen supports HD+(1440×720)@60fps at most. At the same
+time, H1504TQ supports GPS, GLONASS, BDS or Galileo positioning systems, making its positioning function fast and
+accurate.
+H1504TQ integrates feature rich interfaces (such as LCM, camera, touch screen, microphone, speaker, UART, USB, I2C,
+SPI, SDIO, and ADC interfaces), greatly expanding its application in the M2M field, making it widely used in smart cash
+registers, smart POS, tax control machines, security monitoring, vehicle equipment, and high-end information Collection
+equipment, smart robots, smart homes, smart hardware, industrial smart handheld devices, drones, high-end police or law
+enforcement equipment, smart intercom devices, smart wearables, vending machines, logistics cabinets and other equipment
+are used in different industries.
+Main Advantages
+Comprehensive coverage of multi-network standard
+Support Wi-Fi 802.11a/b/g/n and BT4.2 short-range
+wireless communication quad-core ARM Cortex-A53 IEEE 802.11 Support Android 10
+64-bit processor a/b/g/n and Android 13
+Support GPS/GLONASS/BDS/ Galileo
+Support multiple audio and video codecs
+The main screen supports up to HD+(1440×720)@
+60fps
+GPS+Glonass+BDS+Galileo Powerful multimedia BT4.2
+Support 1080P@30fps video recording and playback
+Possess audio and video input and output interfaces
+and rich GPIO interfaces
+WWW.AGENEWTECH.COM
+
+--- Page 5 ---
+H1504TQ_Smart Module Specification
+LTE Cat4 H1504TQ
+Region/Operator China/Eurasia/Latin America
+Operating System Android 10 / Android 13
+Memory 8GB eMMC + 1GB LPDDR3 / 16GB eMMC + 2GB LPDDR3
+Module size (mm) 40.5mm(±0.1mm) × 40.5mm(±0.1mm) × 2.8mm(±0.2mm)
+Packaging LCC + LGA
+Moisture Sensitivity Level MSL3
+Temperature Range
+Normal operating temperature: -20 °C ~ + 80°C
+Operation Temperature
+Storage temperature range：-40 °C ~ + 90 °C
+RF Band Information P0 P1
+LTE-FDD B1/B3/B5/B7/B8/B20/B28A/B28B B1/B2/B3/B4/B5/B7/B8/B28A/B28B
+LTE-TDD B38/B40/B41(194M) B38/B40
+WCDMA B1/B2/B5/B8 B1/B2/B5/B8
+GSM/EDGE B2/B3/B5/B8 B2/B5
+WLAN 2.4/5GHz, 802.11 a/b/g/n
+Bluetooth 4.2
+GNSS GPS/GPS+GLONASS/GPS+BDS
+Authentication
+Operator Certification Undetermined
+Compulsory Certification SRRC*/NAL*/CCC*
+Other Certifications RoHS*/REACH*/CE*
+Data Rate
+LTE-FDD (Mbps) 150Mbps (DL)/50Mbps (UL)
+LTE-TDD (Mbps) 130Mbps (DL)/30Mbps (UL)
+HSPA (Mbps) 21Mbps (DL)/11Mbps (UL)
+WCDMA (Kbps) 384Kbps (DL)/384Kbps (UL)
+EDGE (Kbps) 296Kbps (DL)/236.8Kbps (UL)
+GPRS (Kbps) 107Kbps (DL)/85.6Kbps (UL)
+Outstanding Features
+LTE：Release 10
+3GPP-E-UTRA
+UMTS：Release 9
+Bandwidth（MHz） 1.4-20 MHz
+SIM Card Detection ●
+Dual SIM Dual Standby ●
+USB Firmware Upgrade ●
+OTA Firmware Upgrade ●
+Remarks: 1. *: In progress
+2. ●: Supports
+3. Extended operating temperature: Working within this temperature range may result in a decrease in RF performance, but it can still function normally.
+WWW.AGENEWTECH.COM
+
+--- Page 6 ---
+H1504TQ_Smart Module Specification
+LTE Cat4 H1504TQ
+Electrical specification
+Operating Voltage 3.5~4.4 V, typical 3.8 V
+Consumption (typical) 0.35mA@Shutdown mode; typical 3mA@Sleep mode
+Interface
+LCD 4-lane MIPI_DSI, Resolution up to HD+1440×720@60fps
+Front camera 1-lane MIPI_CSI, supporting up to 2MP photography
+Camera
+Rear camera 4-lane MIPI_CSI, supporting up to 13MP photography
+TP Capacitive touch screen, I2C control
+3 analog inputs: MIC1, MIC2, HEADMIC (including 1 noise cancelling microphone)
+Audio
+3 analog outputs: speaker, earpiece, headphone
+USB ×1, USB 2.0 specification, Supports OTG, charge
+×2, supports 1.8/2.95 V (U) SIM cards, supports (U)SIM card hot plug detection, dual card dual
+(U)SIM
+standby
+UART ×2, UART1 supports hardware flow control; UART0 is only used for debugging
+SD Card ×1, SD3.0, 4-bit SDIO
+ADC ×1
+I2C ×4
+SPI ×3, Reusable as GPIO
+GPIO ×25
+Motor driven ×1
+PWRKEY Internal pull up to VBAT
+ANT Main antenna, Diversity antenna, GNSS antenna, WIFI/BT antenna
+WWW.AGENEWTECH.COM

@@ -6,6 +6,7 @@ import android.media.AudioDeviceInfo
 import android.media.AudioManager
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -93,18 +94,27 @@ class VoiceAudioInputManager(
         .getDevices(AudioManager.GET_DEVICES_INPUTS)
         .filter { it.isSource }
     val selected = _selection.value
-    return when (selected.mode) {
-      VoiceInputSelectionMode.Default -> null
-      VoiceInputSelectionMode.Device ->
-        inputs.firstOrNull { it.stableKey() == selected.deviceKey }
-          ?: inputs.firstOrNull { it.isUsbInput() }
-      VoiceInputSelectionMode.AutoUsb -> inputs.firstOrNull { it.isUsbInput() }
-    }
+    val resolved =
+      when (selected.mode) {
+        VoiceInputSelectionMode.Default -> null
+        VoiceInputSelectionMode.Device ->
+          inputs.firstOrNull { it.stableKey() == selected.deviceKey }
+            ?.takeUnless { it.looksLikeCameraInput() }
+            ?: inputs.bestVoiceInput()
+        VoiceInputSelectionMode.AutoUsb -> inputs.bestVoiceInput()
+      }
+    Log.d(
+      TAG,
+      "resolve input mode=${selected.mode.rawValue} device=${resolveDeviceLabel(resolved)} candidates=${inputs.joinToString { it.debugLabel() }}",
+    )
+    return resolved
   }
 
   fun updateActiveDevice(device: AudioDeviceInfo?) {
     _activeInputLabel.value = "Mic: ${resolveDeviceLabel(device)}"
   }
+
+  fun deviceLabel(device: AudioDeviceInfo?): String = resolveDeviceLabel(device)
 
   fun close() {
     runCatching { audioManager.unregisterAudioDeviceCallback(deviceCallback) }
@@ -130,6 +140,8 @@ private fun AudioDeviceInfo.toVoiceInputDevice(): VoiceInputDevice =
     isUsb = isUsbInput(),
   )
 
+private const val TAG = "VoiceAudioInput"
+
 private fun AudioDeviceInfo.stableKey(): String =
   listOf(type.toString(), productName?.toString().orEmpty(), address.orEmpty())
     .joinToString("|")
@@ -137,3 +149,38 @@ private fun AudioDeviceInfo.stableKey(): String =
 private fun AudioDeviceInfo.isUsbInput(): Boolean =
   type == AudioDeviceInfo.TYPE_USB_DEVICE ||
     type == AudioDeviceInfo.TYPE_USB_HEADSET
+
+private fun List<AudioDeviceInfo>.bestUsbVoiceInput(): AudioDeviceInfo? =
+  filter { it.isUsbInput() && !it.looksLikeCameraInput() }
+    .minWithOrNull(
+      compareBy<AudioDeviceInfo> { it.voiceInputPriority() }
+        .thenBy { it.productName?.toString()?.lowercase().orEmpty() }
+        .thenBy { it.address.orEmpty() },
+    )
+
+private fun List<AudioDeviceInfo>.bestVoiceInput(): AudioDeviceInfo? =
+  bestUsbVoiceInput()
+    ?: filter { !it.isUsbInput() && !it.looksLikeCameraInput() }
+      .minWithOrNull(
+        compareBy<AudioDeviceInfo> { it.voiceInputPriority() }
+          .thenBy { it.productName?.toString()?.lowercase().orEmpty() }
+          .thenBy { it.address.orEmpty() },
+      )
+
+private fun AudioDeviceInfo.voiceInputPriority(): Int {
+  val name = productName?.toString()?.trim()?.lowercase().orEmpty()
+  return when {
+    name.contains("q5") -> 0
+    type == AudioDeviceInfo.TYPE_BUILTIN_MIC -> 1
+    type == AudioDeviceInfo.TYPE_USB_HEADSET -> 1
+    else -> 2
+  }
+}
+
+private fun AudioDeviceInfo.debugLabel(): String =
+  "${productName?.toString()?.trim().orEmpty()} type=$type addr=${address.orEmpty()} priority=${voiceInputPriority()} camera=${looksLikeCameraInput()}"
+
+private fun AudioDeviceInfo.looksLikeCameraInput(): Boolean {
+  val name = productName?.toString()?.trim()?.lowercase().orEmpty()
+  return name.contains("camera") || name.contains("cam")
+}

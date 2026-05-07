@@ -186,7 +186,10 @@ class SafeAsrServiceWrapper(
         }
     }
 
-    fun recognize(audioData: FloatArray): String? {
+    fun recognize(
+        audioData: FloatArray,
+        countForRecycle: Boolean = true,
+    ): String? {
         if (!isModelInitialized()) {
             return null
         }
@@ -196,26 +199,32 @@ class SafeAsrServiceWrapper(
 
         synchronized(decodeLock) {
             val recognizer = offlineRecognizer ?: return null
-            val stream = recognizer.createStream()
 
             var recycleAfterDecode = false
             return try {
-                stream.acceptWaveform(audioData, 16000)
-                recognizer.decode(stream)
-                val text = recognizer.getResult(stream).text.trim()
-                decodeCount += 1
-                recycleAfterDecode = decodeCount >= MAX_DECODES_BEFORE_RECYCLE
-                text
+                synchronized(MnnRuntimeCoordinator.LOCK) {
+                    val stream = recognizer.createStream()
+                    try {
+                        stream.acceptWaveform(audioData, 16000)
+                        recognizer.decode(stream)
+                        val text = recognizer.getResult(stream).text.trim()
+                        if (countForRecycle) {
+                            decodeCount += 1
+                        }
+                        recycleAfterDecode = decodeCount >= MAX_DECODES_BEFORE_RECYCLE
+                        text
+                    } finally {
+                        try {
+                            stream.release()
+                        } catch (_: Throwable) {
+                        }
+                    }
+                }
             } catch (t: Throwable) {
                 Log.e(tag, "Failed to decode audio, rebuilding runtime", t)
                 rebuildRuntimeLocked("decode failure")
                 null
             } finally {
-                try {
-                    stream.release()
-                } catch (_: Throwable) {
-                }
-
                 if (recycleAfterDecode) {
                     rebuildRuntimeLocked("periodic decode recycle")
                 }

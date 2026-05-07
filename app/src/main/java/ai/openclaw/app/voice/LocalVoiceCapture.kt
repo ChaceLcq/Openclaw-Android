@@ -31,6 +31,7 @@ class LocalVoiceCapture(
   private val onStatus: (String) -> Unit,
   private val onListening: (Boolean) -> Unit,
   private val onInputLevel: (Float) -> Unit,
+  private val onSpeechStart: () -> Unit = {},
   private val onPartial: (String) -> Unit,
   private val onFinal: (String) -> Unit,
   private val onUnavailable: (String) -> Unit,
@@ -40,15 +41,63 @@ class LocalVoiceCapture(
   private var acousticEchoCanceler: AcousticEchoCanceler? = null
   private var noiseSuppressor: NoiseSuppressor? = null
   private var automaticGainControl: AutomaticGainControl? = null
-  @Volatile private var stopRequested = false
-  @Volatile private var stopShouldFinalize = true
+
+  @Volatile
+  private var stopRequested = false
+
+  @Volatile
+  private var recordingStarted = false
+
+  @Volatile
+  private var stopShouldFinalize = true
+
+  @Volatile
+  private var externalGateMode = false
+
+  @Volatile
+  private var externalGateOpen = false
+
+  @Volatile
+  private var externalGateCloseSilenceMs = DEFAULT_EXTERNAL_GATE_CLOSE_SILENCE_MS
+
+  @Volatile
+  private var lastLoggedExternalGateOpen: Boolean? = null
+
+  fun setExternalSpeechGateMode(
+    enabled: Boolean,
+    closeSilenceMs: Long = DEFAULT_EXTERNAL_GATE_CLOSE_SILENCE_MS,
+  ) {
+    externalGateMode = enabled
+    externalGateCloseSilenceMs = closeSilenceMs.coerceAtLeast(0L)
+    if (!enabled) externalGateOpen = false
+    Log.d(TAG, "external gate mode enabled=$enabled closeSilenceMs=$externalGateCloseSilenceMs")
+  }
+
+  fun setExternalSpeechGate(open: Boolean) {
+    externalGateOpen = open
+    if (lastLoggedExternalGateOpen != open) {
+      lastLoggedExternalGateOpen = open
+      Log.d(TAG, "external gate set open=$open running=${isRunning()}")
+    }
+  }
+
+  fun isRunning(): Boolean = job?.isActive == true && recordingStarted
 
   fun start(): Boolean {
     job?.let { active ->
       if (active.isActive) {
-        return false
+        if (recordingStarted) {
+          Log.d(TAG, "Local voice capture already running")
+          return false
+        }
+        Log.w(TAG, "Cancel stale local voice capture before recording start")
+        active.cancel()
+        runCatching { recorder?.stop() }
+        runCatching { recorder?.release() }
+        recorder = null
       }
     }
+    recordingStarted = false
     if (
       ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) !=
       PackageManager.PERMISSION_GRANTED
@@ -68,23 +117,34 @@ class LocalVoiceCapture(
           onUnavailable(asrEngine.reason() ?: "MNN ASR unavailable")
           return@launch
         }
+        Log.d(TAG, "Local voice capture ASR ready")
         val activeRecorder =
           try {
             createRecorder()
           } catch (err: Throwable) {
             onUnavailable("AudioRecord failed: ${err.message ?: err::class.simpleName}")
             return@launch
-          }
+        }
         recorder = activeRecorder
         enableAudioEffects(activeRecorder)
-        val device = inputManager.resolveAudioDevice()
-        if (device != null) {
-          runCatching { activeRecorder.setPreferredDevice(device) }
+        val preferredDevice = inputManager.resolveAudioDevice()
+        var preferredSet = true
+        if (preferredDevice != null) {
+          preferredSet = runCatching { activeRecorder.setPreferredDevice(preferredDevice) }.getOrDefault(false)
         }
-        inputManager.updateActiveDevice(device)
+        inputManager.updateActiveDevice(preferredDevice)
         onStatus(inputManager.activeInputLabel.value)
         onListening(true)
         activeRecorder.startRecording()
+        recordingStarted = true
+        val routedDevice = activeRecorder.routedDevice
+        val activeDevice = routedDevice ?: preferredDevice
+        inputManager.updateActiveDevice(activeDevice)
+        onStatus(inputManager.activeInputLabel.value)
+        Log.d(
+          TAG,
+          "Local voice capture recording started preferred=${inputManager.deviceLabel(preferredDevice)} preferredSet=$preferredSet routed=${inputManager.deviceLabel(routedDevice)} active=${inputManager.activeInputLabel.value}",
+        )
         asrEngine.resetVad()
         readLoop(activeRecorder)
       }
@@ -98,6 +158,7 @@ class LocalVoiceCapture(
       job?.cancel()
       runCatching { recorder?.stop() }
     }
+    recordingStarted = false
     onListening(false)
     onInputLevel(0f)
   }
@@ -118,8 +179,8 @@ class LocalVoiceCapture(
   private fun createRecorder(): AudioRecord {
     val errors = ArrayList<String>()
     listOf(
-      MediaRecorder.AudioSource.VOICE_COMMUNICATION,
       MediaRecorder.AudioSource.MIC,
+      MediaRecorder.AudioSource.VOICE_COMMUNICATION,
     ).forEach { source ->
       try {
         return tryCreateAudioRecord(source)
@@ -198,6 +259,8 @@ class LocalVoiceCapture(
     var lastPartialAt = 0L
     var partialUpdatesForSegment = 0
     var lastPartialText = ""
+    var segmentGeneration = 0L
+    var partialJob: Job? = null
     var consecutiveVadWindows = 0
 
     fun resetSegmentState(
@@ -216,6 +279,9 @@ class LocalVoiceCapture(
       lastPartialAt = 0L
       partialUpdatesForSegment = 0
       lastPartialText = ""
+      segmentGeneration += 1
+      partialJob?.cancel()
+      partialJob = null
       consecutiveVadWindows = 0
       if (resetVad) asrEngine.resetVad()
       Log.d(TAG, "ASR segment reset: $reason currentOffset=$currentOffset")
@@ -237,9 +303,38 @@ class LocalVoiceCapture(
         toOffset = currentOffset,
       )
 
+    fun schedulePartialIfNeeded(
+      now: Long,
+      speechSamples: Long,
+    ) {
+      if (
+        partialUpdatesForSegment >= MAX_PARTIAL_UPDATES ||
+        speechSamples < MIN_PARTIAL_SAMPLES ||
+        now - lastPartialAt < PARTIAL_INTERVAL_MS ||
+        partialJob?.isActive == true
+      ) {
+        return
+      }
+      lastPartialAt = now
+      val generation = segmentGeneration
+      val audio = partialAudio()
+      partialJob =
+        scope.launch(Dispatchers.IO) {
+          val partial = recognizeAudio(audio, final = false)
+          if (generation != segmentGeneration) return@launch
+          if (isUsefulPartial(partial) && partial != lastPartialText) {
+            val safePartial = requireNotNull(partial)
+            onPartial(safePartial)
+            partialUpdatesForSegment += 1
+            lastPartialText = safePartial
+          }
+        }
+    }
+
     try {
       for (samples in audioChannel) {
         if (stopRequested) {
+          partialJob?.cancel()
           if (
             stopShouldFinalize &&
             isSpeechStarted &&
@@ -257,67 +352,118 @@ class LocalVoiceCapture(
         val overflow = currentOffset - bufferStartOffset - buffer.size
         if (overflow > 0) bufferStartOffset += overflow
 
-        val vadSpeech = asrEngine.detectSpeech(samples)
-        if (vadSpeech) {
-          consecutiveVadWindows += 1
-          lastSpeechDetectedAt = now
-          lastActivityAt = now
-        } else {
-          consecutiveVadWindows = 0
-        }
-
-        if (!isSpeechStarted && consecutiveVadWindows >= START_CONFIRM_WINDOWS) {
-          val firstVadOffset = currentOffset - samples.size.toLong() * consecutiveVadWindows
-          speechDetectedStartOffset = max(bufferStartOffset, firstVadOffset)
-          speechStartOffset =
-            max(
-              bufferStartOffset,
-              speechDetectedStartOffset - SPEECH_START_LOOKBACK_SAMPLES,
-            )
-          isSpeechStarted = true
-          partialUpdatesForSegment = 0
-          lastPartialText = ""
-          lastPartialAt = 0L
-          lastSpeechDetectedAt = now
-          lastActivityAt = now
-          Log.d(
-            TAG,
-            "speech start speechStartOffset=$speechStartOffset detectedOffset=$speechDetectedStartOffset currentOffset=$currentOffset lookback=$SPEECH_START_LOOKBACK_SAMPLES",
-          )
-        }
-
-        if (isSpeechStarted) {
-          val detectedSpeechSamples = currentOffset - speechDetectedStartOffset
-          val segmentSamples = currentOffset - speechStartOffset
-          val silenceElapsed = now - lastSpeechDetectedAt
-          val shouldFinalize =
-            (!vadSpeech && silenceElapsed > FINAL_SILENCE_MS && detectedSpeechSamples >= MIN_UTTERANCE_SAMPLES) ||
-              segmentSamples >= MAX_UTTERANCE_SAMPLES
-          if (shouldFinalize) {
-            val audio = segmentAudio()
-            val finalText = recognizeFinalUtterance(audio)
-            Log.d(
-              TAG,
-              "speech end silenceMs=$silenceElapsed samples=${audio.size} start=$speechStartOffset current=$currentOffset",
-            )
-            resetSegmentState(clearBuffer = true, resetVad = true, reason = "final")
-            if (isUsefulFinal(finalText)) onFinal(requireNotNull(finalText))
-            continue
+        if (externalGateMode) {
+          val gateOpen = externalGateOpen
+          if (gateOpen) {
+            lastActivityAt = now
+            lastSpeechDetectedAt = now
           }
 
-          if (
-            vadSpeech &&
-            partialUpdatesForSegment < MAX_PARTIAL_UPDATES &&
-            detectedSpeechSamples >= MIN_PARTIAL_SAMPLES &&
-            now - lastPartialAt >= PARTIAL_INTERVAL_MS
-          ) {
-            lastPartialAt = now
-            val partial = recognizeAudio(partialAudio(), final = false)
-            if (isUsefulPartial(partial) && partial != lastPartialText) {
-              val safePartial = requireNotNull(partial)
-              onPartial(safePartial)
-              partialUpdatesForSegment += 1
-              lastPartialText = safePartial
+          if (!isSpeechStarted && gateOpen) {
+            speechDetectedStartOffset = max(bufferStartOffset, currentOffset - samples.size.toLong())
+            speechStartOffset =
+              externalGateSpeechStartOffset(
+                bufferStartOffset = bufferStartOffset,
+                currentOffset = currentOffset,
+                lookbackSamples = SPEECH_START_LOOKBACK_SAMPLES.toLong(),
+              )
+            isSpeechStarted = true
+            partialUpdatesForSegment = 0
+            lastPartialText = ""
+            lastPartialAt = 0L
+            segmentGeneration += 1
+            Log.d(
+              TAG,
+              "external gate speech start speechStartOffset=$speechStartOffset currentOffset=$currentOffset lookback=$SPEECH_START_LOOKBACK_SAMPLES",
+            )
+            onSpeechStart()
+          }
+
+          if (isSpeechStarted) {
+            val segmentSamples = currentOffset - speechStartOffset
+            val silenceElapsed = now - lastSpeechDetectedAt
+            val shouldFinalize =
+              (!gateOpen && silenceElapsed > externalGateCloseSilenceMs && segmentSamples >= MIN_UTTERANCE_SAMPLES) ||
+              segmentSamples >= MAX_UTTERANCE_SAMPLES
+            if (shouldFinalize) {
+              val audio = segmentAudio()
+              segmentGeneration += 1
+              partialJob?.cancel()
+              val finalText = recognizeFinalUtterance(audio)
+              Log.d(
+                TAG,
+                "external gate speech end silenceMs=$silenceElapsed samples=${audio.size} start=$speechStartOffset current=$currentOffset",
+              )
+              resetSegmentState(clearBuffer = true, resetVad = true, reason = "external-gate-final")
+              if (isUsefulFinal(finalText)) onFinal(requireNotNull(finalText))
+              continue
+            }
+
+            if (gateOpen) {
+              schedulePartialIfNeeded(
+                now = now,
+                speechSamples = currentOffset - speechDetectedStartOffset,
+              )
+            }
+          }
+        } else {
+          val vadSpeech = asrEngine.detectSpeech(samples)
+          if (vadSpeech) {
+            consecutiveVadWindows += 1
+            lastSpeechDetectedAt = now
+            lastActivityAt = now
+          } else {
+            consecutiveVadWindows = 0
+          }
+
+          if (!isSpeechStarted && consecutiveVadWindows >= START_CONFIRM_WINDOWS) {
+            val firstVadOffset = currentOffset - samples.size.toLong() * consecutiveVadWindows
+            speechDetectedStartOffset = max(bufferStartOffset, firstVadOffset)
+            speechStartOffset =
+              max(
+                bufferStartOffset,
+                speechDetectedStartOffset - SPEECH_START_LOOKBACK_SAMPLES,
+              )
+            isSpeechStarted = true
+            partialUpdatesForSegment = 0
+            lastPartialText = ""
+            lastPartialAt = 0L
+            segmentGeneration += 1
+            lastSpeechDetectedAt = now
+            lastActivityAt = now
+            Log.d(
+              TAG,
+              "speech start speechStartOffset=$speechStartOffset detectedOffset=$speechDetectedStartOffset currentOffset=$currentOffset lookback=$SPEECH_START_LOOKBACK_SAMPLES",
+            )
+            onSpeechStart()
+          }
+
+          if (isSpeechStarted) {
+            val detectedSpeechSamples = currentOffset - speechDetectedStartOffset
+            val segmentSamples = currentOffset - speechStartOffset
+            val silenceElapsed = now - lastSpeechDetectedAt
+            val shouldFinalize =
+              (!vadSpeech && silenceElapsed > FINAL_SILENCE_MS && detectedSpeechSamples >= MIN_UTTERANCE_SAMPLES) ||
+              segmentSamples >= MAX_UTTERANCE_SAMPLES
+            if (shouldFinalize) {
+              val audio = segmentAudio()
+              segmentGeneration += 1
+              partialJob?.cancel()
+              val finalText = recognizeFinalUtterance(audio)
+              Log.d(
+                TAG,
+                "speech end silenceMs=$silenceElapsed samples=${audio.size} start=$speechStartOffset current=$currentOffset",
+              )
+              resetSegmentState(clearBuffer = true, resetVad = true, reason = "final")
+              if (isUsefulFinal(finalText)) onFinal(requireNotNull(finalText))
+              continue
+            }
+
+            if (
+              vadSpeech &&
+              partialUpdatesForSegment < MAX_PARTIAL_UPDATES
+            ) {
+              schedulePartialIfNeeded(now = now, speechSamples = detectedSpeechSamples)
             }
           }
         }
@@ -328,10 +474,12 @@ class LocalVoiceCapture(
         }
       }
     } finally {
+      partialJob?.cancel()
       readerJob.cancel()
       audioChannel.close()
       job = null
       recorder = null
+      recordingStarted = false
       releaseAudioEffects()
       runCatching { activeRecorder.stop() }
       runCatching { activeRecorder.release() }
@@ -347,6 +495,7 @@ class LocalVoiceCapture(
     final: Boolean,
   ): String? {
     val started = SystemClock.elapsedRealtime()
+    Log.d(TAG, "ASR ${if (final) "final" else "partial"} start samples=${audio.size}")
     val text =
       if (final) {
         asrEngine.recognizeFinal(audio)
@@ -419,10 +568,11 @@ class LocalVoiceCapture(
     private const val CHANNEL_CAPACITY = 600
     private const val SPEECH_START_LOOKBACK_SAMPLES = SAMPLE_RATE * 8 / 10
     private const val START_CONFIRM_WINDOWS = 2
-    private const val PARTIAL_INTERVAL_MS = 1_200L
+    private const val PARTIAL_INTERVAL_MS = 1_500L
     private const val MIN_PARTIAL_SAMPLES = SAMPLE_RATE * 8 / 10
-    private const val PARTIAL_WINDOW_SAMPLES = SAMPLE_RATE * 3 / 2
+    private const val PARTIAL_WINDOW_SAMPLES = SAMPLE_RATE * 2
     private const val FINAL_SILENCE_MS = 200L
+    private const val DEFAULT_EXTERNAL_GATE_CLOSE_SILENCE_MS = 800L
     private const val MIN_UTTERANCE_SAMPLES = SAMPLE_RATE / 3
     private const val MAX_UTTERANCE_SAMPLES = SAMPLE_RATE * 60
     private const val MAX_AUDIO_BUFFER_SAMPLES = SAMPLE_RATE * 65
@@ -463,3 +613,9 @@ private fun audioSourceName(source: Int): String =
     MediaRecorder.AudioSource.MIC -> "MIC"
     else -> source.toString()
   }
+
+internal fun externalGateSpeechStartOffset(
+  bufferStartOffset: Long,
+  currentOffset: Long,
+  lookbackSamples: Long,
+): Long = max(bufferStartOffset, currentOffset - lookbackSamples)

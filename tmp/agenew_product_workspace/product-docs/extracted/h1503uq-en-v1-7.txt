@@ -1,0 +1,173 @@
+Source PDF: product-docs/pdf/Agenewtech_H1503UQ_Smart Module Specification_V1.7.pdf
+Model: H1503UQ
+Language: English
+Version: V1.7
+Extractor: pdfplumber
+Extracted at: 2026-05-07T09:48:55
+
+--- Page 1 ---
+AGENEWTECH
+H1503UQ
+Smart Module Specification_V1.7
+www.agenewtech.com
+
+--- Page 2 ---
+H1503UQ_Smart Module Specification
+Our aim is to provide customers with timely and comprehensive service. For any assistance, please
+contact our company headquarters:
+Wuxi Sunning Technology Co., Ltd. (Abbreviation: Agenew)
+No.52, Zone C, Huigu Pioneer Park, Huishan Economic Development Zone, Wuxi
+Postal Code: 214174
+PhoneNum: +86 0510 8235 0372 Mailbox: Asupport@agenewtech.com
+Introduction
+AGENEW OFFERS THE DOCUMENT AS A SERVICE TO ITS CUSTOMERS. CUSTOMERS MUST DESIGN THEIR PRODUCTS
+ACCORDING TO THE SPECIFICATIONS AND PARAMETERS PROVIDED IN THE DOCUMENTS. AGENEW SHALL NOT BE LIABLE
+FOR ANY DAMAGE CAUSED BY FAILURE TO COMPLY WITH RELEVANT OPERATION OR DESIGN SPECIFICATIONS. AGENEW
+HAS THE RIGHT TO UPDATE THE DOCUMENT BEFORE IT IS ANNOUNCED.
+Disclaimers
+AGENEW MAKES EFFORT TO ENSURE THE INTEGRITY, ACCURACY, TIMELINESS OR UTILITY OF THE FUNCTIONS UNDER
+DEVELOPMENT, BUT DOES NOT EXCLUDE THE POSSIBILITY OF ERRORS OR OMISSIONS OF THE ABOVE FUNCTIONS. UNLESS
+OTHERWISE SPECIFIED VALID AGREEMENTS, AGENEW MAKES NO IMPLIED OR EXPRESS GUARANTEE FOR THE USE OF
+FUNCTIONS UNDER DEVELOPMENT. TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAWS, AGENEW SHALL NOT BE
+LIABLE FOR ANY LOSS OR DAMAGE SUFFERED DUE TO THE USE OF THE FUNCTIONS UNDER DEVELOPMENT, WHETHER SUCH
+LOSS OR DAMAGE IS FORESEEABLE OR NOT.
+Copyright
+THE INFORMATION CONTAINED HERE IS PROPRIETARY TECHNICAL INFORMATION OF WUXI SUNNING TECHNOLOGY
+CO.,LTD. ANY COPIES AND REPRINTS THIS DOCUMENT WITHOUT THE PERMISSION OF AGENEW WILL BEAR LEGAL
+RESPONSIBILITY.
+Copyright © Wuxi Sunning Technology Co., Ltd. 2026. All rights reserved.
+WWW.AGENEWTECH.COM
+
+--- Page 3 ---
+H1503UQ_Smart Module Specification
+About the Document
+History
+Version Data Author Description
+- 2024-05-21 Wu Danyi Initial
+1.0 2024-06-22 Wu Danyi Controlled Copy
+1.1 2024-08-23 Wu Danyi Correct a mistake
+1.2 2024-12-03 Yang Yanlian Add frequency band allocation
+1.3 2025-03-03 Yang Yanlian Add frequency band allocation
+1.4 2025-04-10 Yang Yanlian Add frequency band allocation
+1.5 2025-05-15 Wu Danyi Integrate memory and radio frequency configurations
+1.6 2025-07-04 Wu Danyi Add text description for E2 frequency band
+1.7 2026-03-24 Chen Yun Change company name
+WWW.AGENEWTECH.COM
+
+--- Page 4 ---
+H1503UQ_Smart Module Specification
+H1503UQ
+Multi-network Smart LTE module
+Supports Wi-Fi & BT
+H1503UQ is a multi-network Smart LTE Cat 4 module based on MediaTek's Octa-core (ARM Cortex-A53) processor
+launched by Agenew, equipped with Android 13 operating system. Its powerful performance, neon engine processing, 2D/3D
+graphics acceleration processing capabilities, fully meet the needs of customers for high-speed and multimedia functions in
+industrial and consumer applications.
+H1503UQ supports full coverage of all network systems, WI-FI 802.11a/b/g/n/ac, and BT5.0 near-field wireless
+communication. In addition, the H1503UQ also has audio and video input and output interfaces and rich GPIO interfaces. It
+also supports a variety of audio and video codecs. The home screen supports FHD+ 1920×1200 at most. At the same time,
+H1503UQ supports GPS+GLONASS+BDS+Galileo positioning systems, making its positioning function fast and accurate.
+H1503UQ is a patch module with a total of 275 pins, including 146 LCC pins and 129 LGA pins. The size is only 40.5mm
+× 40.5mm × 2.8mm, which can be embedded in various M2M product applications through pads. H1503UQ integrates rich
+interfaces (such as LCM, camera, touch screen, microphone, speaker, UART, USB, I2C, SPI, SDIO, and ADC interfaces),
+greatly expanding its application in the M2M field, making it widely used in smart cash registers, smart POS, tax control
+machines, security monitoring, vehicle equipment, and high-end information Collection equipment, smart robots, smart homes,
+smart hardware, industrial smart handheld devices, drones, high-end police or law enforcement equipment, smart intercom
+devices, smart wearables, vending machines, logistics cabinets and other equipment are used in different industries.
+Main Advantages
+Comprehensive coverage of multi-network standard
+Support Wi-Fi 802.11a/b/g/n/ac and BT5.0 short-
+range wireless communication Octa-core ARM Cortex-A53 IEEE 802.11 Support Android 13
+64-bit processor a/b/g/n/ac
+Support GPS/GLONASS/BDS/Galileo
+Support multiple audio and video codecs
+The main screen supports up to FHD+
+1920×1200@60fps
+GPS+GLONASS+BDS+Galileo Powerful multimedia BT5.0
+Support 1080P@30fps video recording
+and playback
+Possess audio and video input and output interfaces
+and rich GPIO interfaces
+WWW.AGENEWTECH.COM
+
+--- Page 5 ---
+H1503UQ_Smart Module Specification
+LTE Cat4 H1503UQ
+Region/Operator Eurasia/America
+Operating System Android 13go/Android 13/Android 14go/Android 14
+Memory 1GB+8GB/1GB+16GB/2GB+32GB/3GB+32GB/4GB+64GB
+Module size 40.5mm(±0.1mm) × 40.5mm(±0.1mm) × 2.8mm(±0.2mm)
+Packaging LCC + LGA
+Temperature Range
+Normal operating temperature: -20 °C ~ + 80°C
+Operation Temperature
+Storage temperature range：-40 °C ~ + 90 °C
+Frequency Band
+-E1(P0) -E2(P1) -A1(P4) -E3(P5) -E4(P6)
+Information
+B2/B4/B5/B7/B12/B1
+LTE-FDD B1/B3/B5/B7/B8/B20 B1/B2/B3/B4/B5/B7/ 3/B17/B25/B26/B66/ B1/B3/B5/B7/B8/ B1/B3/B5/B8
+/B28 B8/B20/B28 B20/B28
+B71
+B34/B38/B39/B40/B4
+LTE-TDD B38/B40/B41(120M) B41(194M) B38/B40/B41(120M) B38/B40/B41(120M)
+1(194M)
+WCDMA B1/B5/B8 B1/B2/B4/B5/B8 B2/B4/B5 B1/B5/B8 B1/B5/B8
+GSM/EDGE B2/B3/B5/B8 B2/B3/B5/B8 B2/B3/B5/B8 B3/B8 B3/B8
+WLAN 2.4/5GHz, 802.11 a/b/g/n/ac
+Bluetooth BT5.0
+GNSS GPS+GLONASS+BDS+Galileo
+Authentication
+Operator Certification Undetermined
+Compulsory Certification Undetermined
+Other Certifications Undetermined
+Data Rate
+LTE-FDD (Mbps) 150Mbps (DL)/50Mbps (UL)
+LTE-TDD (Mbps) 150Mbps (DL)/50Mbps (UL)
+DC-HSPA+ (Mbps) 42Mbps (DL)/11.2Mbps (UL)
+WCDMA (Kbps) 384Kbps (DL)/384Kbps (UL)
+EDGE (Kbps) 296Kbps (DL)/236.8Kbps (UL)
+GPRS (Kbps) 107Kbps (DL)/85.6Kbps (UL)
+Outstanding
+characteristics
+LTE: Release 12
+Communication Mode
+UMTS: Release 9
+Bandwidth（MHz） 1.4/3/5/10/15/20
+Rx-Diversity ●
+DL supports MIMO 2 × 2 ●
+SIM Card Detection ●
+Dual SIM Dual Standby ●
+USB Firmware Upgrade ●
+OTA Firmware Upgrade ●
+Remarks: 1. *: In progress
+2. ●: Supports
+3. Extended operating temperature: If the module works in this temperature range, its RF performance might be worse but it can still work properly.
+WWW.AGENEWTECH.COM
+
+--- Page 6 ---
+H1503UQ_Smart Module Specification
+LTE Cat4 H1503UQ
+Electrical specification
+Operating Voltage 3.5~4.4 V, typical 3.8 V
+Consumption (typical) 0.35mA@Shutdown, typical 2.8mA@sleep mode
+Interface
+LCD 4-lane MIPI_DSI, FHD+ 1920×1200@60fps
+Camera Support 2 sets of camera, up to 21MP
+TP Capacitive touch screen
+×3 Analog inputs: MIC1, MIC2, HEADMIC (×1 noise cancelling microphone)
+Audio ×3 Analog outputs: differential linear (requires external audio amplifier), differential receiver
+and stereo earphone
+USB USB 2.0, Supports OTG, charge
+×2, Supports 1.8/3V (U) SIM card, supports (U) SIM card hot plug detection, dual card dual
+(U)SIM
+standby
+UART ×2
+SD Card ×1
+ADC ×2, 1 set general ADC interface, 1 set for battery ID
+I2C ×6
+SPI ×5
+PWRKEY Internal pull up to VBAT
+GPIO 18 GPIO reserved
+ANT Main antenna, Diversity antenna, GNSS antenna, WIFI/BT antenna
+WWW.AGENEWTECH.COM

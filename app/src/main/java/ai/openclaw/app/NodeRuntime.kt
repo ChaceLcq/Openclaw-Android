@@ -26,12 +26,12 @@ import ai.openclaw.app.node.DebugHandler
 import ai.openclaw.app.node.DeviceHandler
 import ai.openclaw.app.node.DeviceNotificationListenerService
 import ai.openclaw.app.node.InvokeDispatcher
-import ai.openclaw.app.node.LocationCaptureManager
-import ai.openclaw.app.node.LocationHandler
 import ai.openclaw.app.node.LocalGatewayLaunchResult
 import ai.openclaw.app.node.LocalGatewayLauncher
 import ai.openclaw.app.node.LocalGatewayStopResult
 import ai.openclaw.app.node.LocalModelProviderConfig
+import ai.openclaw.app.node.LocationCaptureManager
+import ai.openclaw.app.node.LocationHandler
 import ai.openclaw.app.node.MotionHandler
 import ai.openclaw.app.node.NodePresenceAliveBeacon
 import ai.openclaw.app.node.NotificationsHandler
@@ -54,14 +54,19 @@ import ai.openclaw.app.voice.VoiceAudioInputManager
 import ai.openclaw.app.voice.VoiceConversationEntry
 import ai.openclaw.app.voice.VoiceInputDevice
 import ai.openclaw.app.voice.VoiceInputSelection
+import ai.openclaw.app.voice.VoiceInputSelectionMode
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.SystemClock
 import android.util.Log
 import androidx.core.content.ContextCompat
+import com.agenew.usbcamera.MouthCameraState
+import com.agenew.usbcamera.UsbMouthCameraManager
+import com.agenew.widget.SimpleUVCCameraTextureView
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -70,6 +75,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -78,6 +84,10 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicLong
+
+private const val VOICE_TTS_PRELOAD_WAIT_MS = 20_000L
+private const val VOICE_PAGE_TTS_ENABLED = false
+private const val VOICE_PAGE_WARM_TTS_RUNTIME_FOR_ASR = true
 
 class NodeRuntime(
   context: Context,
@@ -108,10 +118,22 @@ class NodeRuntime(
     )
   private val localMnnAsr = LocalMnnAsrEngine(appContext)
   private val localMnnTts = LocalMnnTtsEngine(appContext)
+  private val mouthCamera = UsbMouthCameraManager(appContext)
+  private var mouthAsrStartJob: Job? = null
+  private var voiceMnnTtsWarmJob: Job? = null
+
+  @Volatile
+  private var voiceMnnRuntimeWarmed = false
+
+  @Volatile
+  private var voiceMnnTtsWarmed = false
 
   private val externalAudioCaptureActive = MutableStateFlow(false)
   private val _voiceCaptureMode = MutableStateFlow(VoiceCaptureMode.Off)
   val voiceCaptureMode: StateFlow<VoiceCaptureMode> = _voiceCaptureMode.asStateFlow()
+  private val _mouthAsrReadyText = MutableStateFlow("Voice inactive")
+  val mouthAsrReadyText: StateFlow<String> = _mouthAsrReadyText.asStateFlow()
+  val mouthCameraState: StateFlow<MouthCameraState> = mouthCamera.state
 
   private val discovery = GatewayDiscovery(appContext, scope = scope)
   val gateways: StateFlow<List<GatewayEndpoint>> = discovery.gateways
@@ -391,20 +413,6 @@ class NodeRuntime(
       },
     )
 
-  init {
-    DeviceNotificationListenerService.setNodeEventSink { event, payloadJson ->
-      scope.launch {
-        nodeSession.sendNodeEvent(event = event, payloadJson = payloadJson)
-      }
-    }
-    scope.launch {
-      prefs.setVoiceMnnAvailable(localMnnAsr.preload())
-    }
-    scope.launch {
-      localMnnTts.preload()
-    }
-  }
-
   private val chat: ChatController =
     ChatController(
       scope = scope,
@@ -424,12 +432,12 @@ class NodeRuntime(
         session = operatorSession,
         supportsChatSubscribe = false,
         isConnected = { operatorConnected },
-        onBeforeSpeak = { micCapture.pauseForTts() },
-        onAfterSpeak = { micCapture.resumeAfterTts() },
+        onBeforeSpeak = {},
+        onAfterSpeak = {},
         localTtsEngine = localMnnTts,
         onMnnAvailabilityChanged = { prefs.setVoiceMnnAvailable(it) },
       ).also { speaker ->
-        speaker.setPlaybackEnabled(prefs.speakerEnabled.value)
+        speaker.setPlaybackEnabled(VOICE_PAGE_TTS_ENABLED && prefs.speakerEnabled.value)
       }
     }
   private val voiceReplySpeaker: TalkModeManager
@@ -455,19 +463,46 @@ class NodeRuntime(
         val response = operatorSession.request("chat.send", params.toString())
         parseChatSendRunId(response) ?: idempotencyKey
       },
+      fetchAssistantReplyForMessage = { message ->
+        fetchVoiceAssistantReplyForMessage(message)
+      },
       speakAssistantReply = { text ->
         // Voice-tab replies should speak through the dedicated reply speaker.
         // Relying on talkMode.ttsOnAllResponses here can drop playback if the
         // chat-event path misses the terminal event for this turn.
-        voiceReplySpeaker.speakAssistantReply(text)
+        if (VOICE_PAGE_TTS_ENABLED) {
+          voiceReplySpeaker.speakAssistantReply(text)
+        }
+      },
+      stopAssistantSpeech = {
+        voiceReplySpeaker.stopTts()
       },
       isAssistantTtsReady = {
-        prefs.speakerEnabled.value && localMnnTts.isReady()
+        VOICE_PAGE_TTS_ENABLED && prefs.speakerEnabled.value
+      },
+      isAssistantSpeaking = {
+        voiceReplySpeaker.isSpeaking.value
       },
       localAsrEngine = localMnnAsr,
       inputManager = voiceAudioInputManager,
       onMnnAvailabilityChanged = { prefs.setVoiceMnnAvailable(it) },
     )
+  }
+
+  init {
+    DeviceNotificationListenerService.setNodeEventSink { event, payloadJson ->
+      scope.launch {
+        nodeSession.sendNodeEvent(event = event, payloadJson = payloadJson)
+      }
+    }
+    scope.launch {
+      prefs.setVoiceMnnAvailable(localMnnAsr.preload())
+    }
+    scope.launch {
+      mouthCamera.state.collect { state ->
+        micCapture.setMouthSpeechGate(state.isSpeaking)
+      }
+    }
   }
 
   val micStatusText: StateFlow<String>
@@ -930,6 +965,97 @@ class NodeRuntime(
     // Don't re-enable on active=true; mic toggle drives that
   }
 
+  fun attachMouthCameraPreview(view: SimpleUVCCameraTextureView) {
+    mouthCamera.attachPreview(view)
+  }
+
+  fun detachMouthCameraPreview(view: SimpleUVCCameraTextureView) {
+    mouthCamera.detachPreview(view)
+  }
+
+  fun setMouthAsrActive(active: Boolean) {
+    mouthAsrStartJob?.cancel()
+    mouthAsrStartJob = null
+    if (active) {
+      _mouthAsrReadyText.value = if (voiceMnnRuntimeWarmed) "Ready to speak" else "Preparing ASR"
+      if (voiceReplySpeakerLazy.isInitialized()) {
+        voiceReplySpeaker.setPlaybackEnabled(false)
+      }
+      voiceAudioInputManager.setSelection(VoiceInputSelection(VoiceInputSelectionMode.AutoUsb))
+      talkMode.ttsOnAllResponses = false
+      talkMode.setEnabled(false)
+      stopVoicePlayback()
+      NodeForegroundService.setVoiceCaptureMode(appContext, VoiceCaptureMode.ManualMic)
+      externalAudioCaptureActive.value = true
+      _voiceCaptureMode.value = VoiceCaptureMode.ManualMic
+      prefs.setVoiceMicEnabled(false)
+      mouthCamera.start()
+      mouthAsrStartJob =
+        scope.launch {
+          if (!warmVoiceMnnRuntimeForMouthAsr()) {
+            _mouthAsrReadyText.value = "Mouth ASR unavailable"
+            return@launch
+          }
+          if (_voiceCaptureMode.value != VoiceCaptureMode.ManualMic) return@launch
+          micCapture.setMouthAsrActive(true)
+          _mouthAsrReadyText.value = "Ready to speak"
+        }
+    } else {
+      _mouthAsrReadyText.value = "Voice inactive"
+      mouthCamera.stop()
+      micCapture.setMouthAsrActive(false)
+      NodeForegroundService.setVoiceCaptureMode(appContext, VoiceCaptureMode.Off)
+      externalAudioCaptureActive.value = false
+      _voiceCaptureMode.value = VoiceCaptureMode.Off
+    }
+  }
+
+  private suspend fun warmVoiceMnnRuntimeForMouthAsr(): Boolean {
+    if (voiceMnnRuntimeWarmed) {
+      _mouthAsrReadyText.value = "Ready to speak"
+      return true
+    }
+    _mouthAsrReadyText.value = "Preparing ASR"
+    val asrReady = localMnnAsr.preload()
+    prefs.setVoiceMnnAvailable(asrReady)
+    if (!asrReady) return false
+    if (VOICE_PAGE_WARM_TTS_RUNTIME_FOR_ASR) {
+      _mouthAsrReadyText.value = if (VOICE_PAGE_TTS_ENABLED) "Preparing playback" else "Preparing voice runtime"
+      val ttsWarmJob = warmVoiceTtsRuntimeInBackground()
+      val ttsCompleted =
+        withTimeoutOrNull(VOICE_TTS_PRELOAD_WAIT_MS) {
+          ttsWarmJob.join()
+          true
+        } == true
+      if (!ttsCompleted) {
+        Log.w("OpenClawVoice", "MNN TTS runtime preload still running after ${VOICE_TTS_PRELOAD_WAIT_MS}ms; enabling ASR")
+      }
+    }
+    voiceMnnRuntimeWarmed = true
+    _mouthAsrReadyText.value = "Ready to speak"
+    return true
+  }
+
+  private fun warmVoiceTtsRuntimeInBackground(): Job {
+    val active = voiceMnnTtsWarmJob
+    if (voiceMnnTtsWarmed) return active ?: scope.launch {}
+    if (active?.isActive == true) return active
+    val job =
+      scope.launch(Dispatchers.IO) {
+        val started = SystemClock.elapsedRealtime()
+        Log.d("OpenClawVoice", "MNN TTS preload start")
+        val ready =
+          runCatching { localMnnTts.preload() }
+            .onFailure { err ->
+              Log.w("OpenClawVoice", "MNN TTS preload failed: ${err.message ?: err::class.simpleName}")
+            }.getOrDefault(false)
+        voiceMnnTtsWarmed = ready
+        Log.d("OpenClawVoice", "MNN TTS preload ok=$ready durMs=${SystemClock.elapsedRealtime() - started}")
+      }
+    voiceMnnTtsWarmJob = job
+    return job
+  }
+
   fun setMicEnabled(value: Boolean) {
     setVoiceCaptureMode(if (value) VoiceCaptureMode.ManualMic else VoiceCaptureMode.Off)
   }
@@ -944,7 +1070,7 @@ class NodeRuntime(
   fun setSpeakerEnabled(value: Boolean) {
     prefs.setSpeakerEnabled(value)
     if (voiceReplySpeakerLazy.isInitialized()) {
-      voiceReplySpeaker.setPlaybackEnabled(value)
+      voiceReplySpeaker.setPlaybackEnabled(VOICE_PAGE_TTS_ENABLED && value)
     }
     // Keep TalkMode in sync so any active Talk playback also respects speaker mute.
     talkMode.setPlaybackEnabled(value)
@@ -966,6 +1092,8 @@ class NodeRuntime(
         talkMode.ttsOnAllResponses = false
         talkMode.setEnabled(false)
         stopVoicePlayback()
+        mouthCamera.stop()
+        micCapture.setMouthAsrActive(false)
         micCapture.setMicEnabled(false)
         if (persistManualMic) {
           prefs.setVoiceMicEnabled(false)
@@ -977,6 +1105,7 @@ class NodeRuntime(
       VoiceCaptureMode.ManualMic -> {
         talkMode.ttsOnAllResponses = false
         talkMode.setEnabled(false)
+        mouthCamera.stop()
         NodeForegroundService.setVoiceCaptureMode(appContext, VoiceCaptureMode.ManualMic)
         if (persistManualMic) {
           prefs.setVoiceMicEnabled(true)
@@ -1012,6 +1141,8 @@ class NodeRuntime(
     talkMode.ttsOnAllResponses = false
     talkMode.setEnabled(false)
     stopVoicePlayback()
+    mouthCamera.stop()
+    micCapture.setMouthAsrActive(false)
     micCapture.setMicEnabled(false)
     prefs.setVoiceMicEnabled(false)
     NodeForegroundService.setVoiceCaptureMode(appContext, VoiceCaptureMode.Off)
@@ -1401,6 +1532,82 @@ class NodeRuntime(
       null
     }
   }
+
+  private suspend fun fetchVoiceAssistantReplyForMessage(userMessage: String): String? {
+    val targetUserText = normalizeHistoryText(userMessage)
+    if (targetUserText.isEmpty()) return null
+    val params =
+      buildJsonObject {
+        put("sessionKey", JsonPrimitive(resolveMainSessionKey()))
+      }
+    val response = operatorSession.request("chat.history", params.toString())
+    val root = json.parseToJsonElement(response).asObjectOrNull() ?: return null
+    val messages = root["messages"] as? JsonArray ?: return null
+
+    var userIndex = -1
+    for (index in messages.indices.reversed()) {
+      val message = messages[index].asObjectOrNull() ?: continue
+      if (message["role"].asStringOrNull() != "user") continue
+      if (historyUserTextMatches(message, targetUserText)) {
+        userIndex = index
+        break
+      }
+    }
+    if (userIndex < 0) return null
+
+    for (index in userIndex + 1 until messages.size) {
+      val message = messages[index].asObjectOrNull() ?: continue
+      if (message["role"].asStringOrNull() == "user") return null
+      if (message["role"].asStringOrNull() != "assistant") continue
+      val text = historyMessageText(message)
+      if (!text.isNullOrBlank()) return text
+      val errorText = historyAssistantErrorText(message)
+      if (!errorText.isNullOrBlank()) return errorText
+    }
+    return null
+  }
+
+  private fun historyUserTextMatches(
+    message: JsonObject,
+    targetUserText: String,
+  ): Boolean {
+    val rawText = historyMessageText(message).orEmpty()
+    val normalizedRaw = normalizeHistoryText(rawText)
+    val normalizedVisible = normalizeHistoryText(stripHistoryUserEnvelope(rawText))
+    return normalizedRaw == targetUserText || normalizedVisible == targetUserText
+  }
+
+  private fun stripHistoryUserEnvelope(text: String): String {
+    val withoutMessageId =
+      text
+        .lines()
+        .filterNot { line -> line.trim().matches(Regex("""^\[message_id:\s*[^]]+\]$""")) }
+        .joinToString("\n")
+    return withoutMessageId.replace(Regex("""(?m)^\[[^]]+\]\s*"""), "").trim()
+  }
+
+  private fun historyAssistantErrorText(message: JsonObject): String? {
+    val error = message["errorMessage"].asStringOrNull()?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+    return "OpenClaw reply failed: $error"
+  }
+
+  private fun historyMessageText(message: JsonObject): String? {
+    val content = message["content"]
+    if (content is JsonPrimitive) {
+      return content.asStringOrNull()?.trim()?.takeIf { it.isNotEmpty() }
+    }
+    val parts =
+      (content as? JsonArray)
+        ?.mapNotNull { part ->
+          val obj = part.asObjectOrNull() ?: return@mapNotNull null
+          val type = obj["type"].asStringOrNull()
+          if (type != null && type != "text") return@mapNotNull null
+          obj["text"].asStringOrNull()?.trim()?.takeIf { it.isNotEmpty() }
+        }.orEmpty()
+    return parts.joinToString("\n").trim().takeIf { it.isNotEmpty() }
+  }
+
+  private fun normalizeHistoryText(text: String?): String = text.orEmpty().replace(Regex("\\s+"), " ").trim()
 
   private suspend fun refreshBrandingFromGateway() {
     if (!_isConnected.value) return

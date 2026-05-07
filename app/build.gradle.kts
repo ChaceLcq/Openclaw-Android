@@ -5,7 +5,10 @@ val dnsjavaInetAddressResolverService = "META-INF/services/java.net.spi.InetAddr
 val openClawAndroidRuntimeVersion = "0.2.0"
 val openClawAndroidRuntimeWorkDir = layout.buildDirectory.dir("generated/openclawAndroidRuntime")
 val openClawAndroidRuntimeAssetsDir = layout.buildDirectory.dir("generated/openclawAndroidRuntimeAssets")
-val openClawAndroidRuntimeAssetsPath = layout.buildDirectory.asFile.get().resolve("generated/openclawAndroidRuntimeAssets")
+val openClawAndroidRuntimeAssetsPath =
+  layout.buildDirectory.asFile
+    .get()
+    .resolve("generated/openclawAndroidRuntimeAssets")
 val openClawAndroidRuntimeZip = openClawAndroidRuntimeAssetsDir.map { it.file("openclaw/runtime/openclaw-runtime.zip") }
 
 val androidStoreFile = providers.gradleProperty("OPENCLAW_ANDROID_STORE_FILE").orNull?.takeIf { it.isNotBlank() }
@@ -110,6 +113,10 @@ android {
   buildFeatures {
     compose = true
     buildConfig = true
+  }
+
+  androidResources {
+    noCompress += listOf("task", "tflite")
   }
 
   compileOptions {
@@ -221,6 +228,8 @@ dependencies {
   implementation(libs.androidx.camera.lifecycle)
   implementation(libs.androidx.camera.video)
   implementation(libs.play.services.code.scanner)
+  implementation("com.google.mediapipe:tasks-vision:0.10.14")
+  implementation("org.tensorflow:tensorflow-lite:2.15.0")
 
   // Unicast DNS-SD (Wide-Area Bonjour) for tailnet discovery domains.
   implementation(libs.dnsjava)

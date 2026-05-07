@@ -20,13 +20,28 @@ class LocalMnnTtsEngine(
 
   fun isReady(): Boolean = synchronized(lock) { service?.isLoaded == true }
 
-  internal suspend fun synthesize(text: String): TalkSpeakAudio? =
+  internal suspend fun synthesize(
+    text: String,
+    shouldContinue: () -> Boolean = { true },
+  ): TalkSpeakAudio? =
     withContext(Dispatchers.IO) {
       val spoken = text.trim()
       if (spoken.isEmpty()) return@withContext null
+      if (!shouldContinue()) {
+        Log.d(TAG, "MNN TTS synth skipped before init chars=${spoken.length}")
+        return@withContext null
+      }
       val active = ensureService() ?: return@withContext null
+      if (!shouldContinue()) {
+        Log.d(TAG, "MNN TTS synth skipped before process chars=${spoken.length}")
+        return@withContext null
+      }
       val started = SystemClock.elapsedRealtime()
       val samples = active.process(spoken)
+      if (!shouldContinue()) {
+        Log.d(TAG, "MNN TTS synth discarded after cancel chars=${spoken.length} durMs=${SystemClock.elapsedRealtime() - started}")
+        return@withContext null
+      }
       if (samples.isEmpty()) {
         unavailableReason = active.getLastErrorMessage() ?: "MNN TTS returned empty audio"
         Log.w(TAG, "MNN TTS empty output reason=$unavailableReason")

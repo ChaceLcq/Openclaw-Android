@@ -1,0 +1,161 @@
+Source PDF: product-docs/pdf/Agenewtech_M293GO_Smart Module Specification_V2.1.pdf
+Model: M293GO
+Language: English
+Version: V2.1
+Extractor: pdfplumber
+Extracted at: 2026-05-07T09:49:09
+
+--- Page 1 ---
+AGENEWTECH
+M293GO
+Smart Module Specification_V2.1
+www.agenewtech.com
+
+--- Page 2 ---
+M293GO_Smart Module Specification
+Our aim is to provide customers with timely and comprehensive service. For any assistance, please
+contact our company headquarters:
+Wuxi Sunning Technology Co., Ltd. (Abbreviation: Agenew)
+No.52, Zone C, Huigu Pioneer Park, Huishan Economic Development Zone, Wuxi
+Postal Code: 214174
+PhoneNum: +86 0510 8235 0372 Mailbox: Asupport@agenewtech.com
+Introduction
+AGENEW OFFERS THE DOCUMENT AS A SERVICE TO ITS CUSTOMERS. CUSTOMERS MUST DESIGN THEIR PRODUCTS
+ACCORDING TO THE SPECIFICATIONS AND PARAMETERS PROVIDED IN THE DOCUMENTS. AGENEW SHALL NOT BE LIABLE
+FOR ANY DAMAGE CAUSED BY FAILURE TO COMPLY WITH RELEVANT OPERATION OR DESIGN SPECIFICATIONS. AGENEW
+HAS THE RIGHT TO UPDATE THE DOCUMENT BEFORE IT IS ANNOUNCED.
+Disclaimers
+AGENEW MAKES EFFORT TO ENSURE THE INTEGRITY, ACCURACY, TIMELINESS OR UTILITY OF THE FUNCTIONS UNDER
+DEVELOPMENT, BUT DOES NOT EXCLUDE THE POSSIBILITY OF ERRORS OR OMISSIONS OF THE ABOVE FUNCTIONS. UNLESS
+OTHERWISE SPECIFIED VALID AGREEMENTS, AGENEW MAKES NO IMPLIED OR EXPRESS GUARANTEE FOR THE USE OF
+FUNCTIONS UNDER DEVELOPMENT. TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAWS, AGENEW SHALL NOT BE
+LIABLE FOR ANY LOSS OR DAMAGE SUFFERED DUE TO THE USE OF THE FUNCTIONS UNDER DEVELOPMENT, WHETHER SUCH
+LOSS OR DAMAGE IS FORESEEABLE OR NOT.
+Copyright
+THE INFORMATION CONTAINED HERE IS PROPRIETARY TECHNICAL INFORMATION OF WUXI SUNNING TECHNOLOGY
+CO.,LTD. ANY COPIES AND REPRINTS THIS DOCUMENT WITHOUT THE PERMISSION OF AGENEW WILL BEAR LEGAL
+RESPONSIBILITY.
+Copyright © Wuxi Sunning Technology Co., Ltd. 2026. All rights reserved.
+WWW.AGENEWTECH.COM
+
+--- Page 3 ---
+M293GO_Smart Module Specification
+About the Document
+History
+Version Data Author Description
+- 2023-09-22 Ma Yuxin Initial
+1.0 2023-09-22 Ma Yuxin Controlled Copy
+1.1 2025-01-03 Yang Yanlian Correct errors
+2.1 2026-02-09 Wu Danyi Update the company name
+WWW.AGENEWTECH.COM
+
+--- Page 4 ---
+M293GO_Smart Module Specification
+M293GO
+Multi-network Smart 5G module
+Supports Wi-Fi & BT
+M293GO is a multi-network smart 5G module based on MediaTek Octa-core(2*ARM Cortex-A78+6*ARM Cortex-A55)
+6nm processor MT8791T launched by Agenew, which is equipped with Android 13 operation system. It has powerful
+performance, neon engine processing, 2D/3D graphics acceleration processing capability, and fully meets customer’s
+demands for high speed and multimedia functions in industrial and consumer applications.
+M293GO supports full coverage of all network systems, WI-FI 802.11a/b/g/n/ac/ax and BT5.2 near-field wireless
+communication. In addition, M293GO also has audio and video input and output interfaces and rich GPIO interfaces. It also
+supports a variety of audio and video codecs. The home screen supports up to FHD+ 1080*2520 at most. At the same time,
+M293GO supports GPS, GLONASS, BDS and Galileo positioning systems, making its positioning function fast and accurate.
+M293GO is a patch module with a total of 430 pin, all of which are LGA pins. The size is 47.0mm×48.0mm×2.6mm,
+which can be embedded in various M2M production applications through pads, making it widely used in smart cash registers,
+smart POS, tax control machines, security monitoring, vehicle equipment, and high-end information collection equipment,
+smart robots, smart homes, smart hardware, industrial smart handheld devices, drones, high-end police or law enforcement
+equipment, smart intercom devices, smart wearables, vending machines, logistics cabinets and other equipment are used in
+different industries.
+Main Advantages
+Comprehensive coverage of multi-network standard
+Support Wi-Fi 802.11a/b/g/n/ac/ax 2T2R and BT5.2 short-range
+wireless communication 2*ARM Cortex-A78 IEEE 802.11 Android 13
++6*ARM Cortex-A55 a/b/g/n/ac/ax
+Support GPS+GLONASS+BDS+Galileo and other 64-bit processor（Octa-core）
+standard satellite positioning; Support L1+L5 frequencies
+Support multiple audio and video codecs
+The main screen supports up to FHD+1080*2520 @120Hz
+Support 4K@30fps video recording and playback
+GPS+GLONASS+BDS+Galileo Multimedia BT 5.2
+Possess audio and video input and output interfaces processing engine
+and rich GPIO interfaces
+Built-in AI unit, support 2T computing power
+WWW.AGENEWTECH.COM
+
+--- Page 5 ---
+M293GO_Smart Module Specification
+5G NR M293GO
+Region/Operator China/India/Europe/America/Australia
+Operating System Android 13
+Memory 64GB UFS + 4GB LPDDR4X（Default）
+Module size (mm) 47.0 × 48.0 × 2.6
+Packaging LGA
+Temperature Range
+Operating temperature range：-20 °C ~ + 80 °C
+Operation Temperature
+Storage temperature range：-40 °C ~ + 90 °C
+Frequency Information
+NR N1/N3/N5/N7/N8/N20/N28/N38/N41(PC2)/N77/N78/N79
+LTE-FDD B1/B2/B3/B4/B5/B7/B8/B20/B28full/B66
+LTE-TDD B34/B38/B39/B40/B41(2496-2690)/B42/B43
+WCDMA B1/B2/B5/B8
+CDMA BC0/BC1
+GSM/EDGE B2/B3/B5/B8
+WLAN 2.4/5GHz, 802.11 a/b/g/n/ac/ax
+Bluetooth Bluetooth 5.2
+GNSS GPS + GLONASS + Beidou + Galileo
+Authentication
+Operator Certification TBD
+Compulsory Certification TBD
+Other Certifications TBD
+Data Transfer Rate
+NR-FDD 800Mbps （DL）/200Mbps （UL）
+NR-TDD 2.3 Gbps （DL）/625Mbps （UL）
+LTE-FDD（DL CA） 1.2Gbps （DL）/75Mbps （UL）
+LTE-TDD（DL CA） 600Mbps （DL）/45Mbps （UL）
+DC-HSPA+ 42Mbps （DL）/11.2Mbps（UL）
+WCDMA 384Kbps （DL）/384Kbps（UL）
+EDGE 236.8Kbps（DL）/236.8Kbps（UL）
+GPRS 85.6Kbps（DL）/85.6Kbps（UL）
+Outstanding Characteristics
+NR-FDD Bandwidth（MHz） 5/10/15/20/30/40
+NR-TDD Bandwidth（MHz） 10/15/20/40/50/60/80/90/100
+LTE Bandwidth（MHz） 1.4/3/5/10/15/20
+DL supports MIMO 1 × 4 ●
+SIM Card Detection ●
+Dual SIM Dual Standby ●
+USB Firmware Upgrade ●
+OTA Firmware Upgrade ●
+WWW.AGENEWTECH.COM
+
+--- Page 6 ---
+M293GO_Smart Module Specification
+5G NR M293GO
+Electrical Specification
+Operating Voltage 3.4~4.5 V, typical 3.8 V
+Power Consumption (typical) TBD
+Interface
+LCD 4-lane MIPI DSI，Resolution up to FHD+ 1080*2520@120fps
+Camera 3 4-lane MIPI CSI，support 20MP+20MP@30fps dual camera
+Scanner Lens 2 2-lane MIPI CSI
+TP Capacitive touch screen
+Lineout interface, receiver, earphone
+Audio
+3 channels of analog microphones + 2 channels of digital microphones
+USB USB 2.0，USB3.1，Support OTG
+(U)SIM 2 sets（1.8V/3.0V)
+UART 2 sets of UART for debugging and applications
+SD Card Support SD card (SD3.0)
+ADC 8 sets of ADC interfaces, 2 of which are dedicated to battery ID detection
+I2C 10 sets of I2C interfaces for TP, camera, sensor and other peripherals
+5 sets of SPI interfaces, the module can only be the main device. One sets of the SPI interfaces can be
+SPI
+multiplexed as an I2S interface
+PWRKEY Internally pull up to VBAT
+GPIO 28 GPIO dedicated interfaces and 6 general GPIO ports are reserved
+ANT Main antenna, Diversity antenna, GNSS antenna, Wi-Fi 2.4G&Bluetooth antenna, Wi-Fi 5G antenna
+Remarks：1.*:Inprogress
+2.●:Supports
+WWW.AGENEWTECH.COM

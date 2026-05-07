@@ -1,0 +1,164 @@
+Source PDF: product-docs/pdf/Agenewtech_H1641UP_Smart Module Specification_V2.1.pdf
+Model: H1641UP
+Language: English
+Version: V2.1
+Extractor: pdfplumber
+Extracted at: 2026-05-07T09:49:02
+
+--- Page 1 ---
+AGENEWTECH
+H1641UP
+Smart Module Specification_V2.1
+www.agenewtech.com
+
+--- Page 2 ---
+H1641UP_Smart Module Specification
+Our aim is to provide customers with timely and comprehensive service. For any assistance, please
+contact our company headquarters:
+Wuxi Sunning Technology Co., Ltd. (Abbreviation: Agenew)
+No.52, Zone C, Huigu Pioneer Park, Huishan Economic Development Zone, Wuxi
+Postal Code: 214174
+PhoneNum: +86 0510 8235 0372 Mailbox: Asupport@agenewtech.com
+Introduction
+AGENEW OFFERS THE DOCUMENT AS A SERVICE TO ITS CUSTOMERS. CUSTOMERS MUST DESIGN THEIR PRODUCTS
+ACCORDING TO THE SPECIFICATIONS AND PARAMETERS PROVIDED IN THE DOCUMENTS. AGENEW SHALL NOT BE LIABLE
+FOR ANY DAMAGE CAUSED BY FAILURE TO COMPLY WITH RELEVANT OPERATION OR DESIGN SPECIFICATIONS. AGENEW
+HAS THE RIGHT TO UPDATE THE DOCUMENT BEFORE IT IS ANNOUNCED.
+Disclaimers
+AGENEW MAKES EFFORT TO ENSURE THE INTEGRITY, ACCURACY, TIMELINESS OR UTILITY OF THE FUNCTIONS UNDER
+DEVELOPMENT, BUT DOES NOT EXCLUDE THE POSSIBILITY OF ERRORS OR OMISSIONS OF THE ABOVE FUNCTIONS. UNLESS
+OTHERWISE SPECIFIED VALID AGREEMENTS, AGENEW MAKES NO IMPLIED OR EXPRESS GUARANTEE FOR THE USE OF
+FUNCTIONS UNDER DEVELOPMENT. TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAWS, AGENEW SHALL NOT BE
+LIABLE FOR ANY LOSS OR DAMAGE SUFFERED DUE TO THE USE OF THE FUNCTIONS UNDER DEVELOPMENT, WHETHER SUCH
+LOSS OR DAMAGE IS FORESEEABLE OR NOT.
+Copyright
+THE INFORMATION CONTAINED HERE IS PROPRIETARY TECHNICAL INFORMATION OF WUXI SUNNING TECHNOLOGY
+CO.,LTD. ANY COPIES AND REPRINTS THIS DOCUMENT WITHOUT THE PERMISSION OF AGENEW WILL BEAR LEGAL
+RESPONSIBILITY.
+Copyright © Wuxi Sunning Technology Co., Ltd. 2026. All rights reserved.
+WWW.AGENEWTECH.COM
+
+--- Page 3 ---
+H1641UP_Smart Module Specification
+About the Document
+History
+Version Data Author Description
+- 2021-12-14 Huang Zizhen Initial
+1.0 2022-04-04 Huang Zizhen Controlled
+1.1 2022-05-31 Yang Yanlian Correct a mistake
+Electrical properties, structural parameters,
+1.2 2022-09-15 Feng Dongyang
+interface description
+1.3 2023-01-30 Daniel Wu Operating temperature modification
+Updated description: All previous versions are
+2.0 2023-06-01 Daniel Wu
+disabled
+2.1 2026-03-23 Chen Yun Update the company name
+WWW.AGENEWTECH.COM
+
+--- Page 4 ---
+H1641UP_Smart Module Specification
+H1641UP
+Multi-network Smart 4G module
+Supports Wi-Fi & BT
+H1641UP is a multi-network Smart LTE Cat 4 module based on MediaTek's octa -core ARM Cortex-A53 processor
+launched by Agenew, equipped with Android 11 operating system. Its powerful performance, neon engine processing, 2D/3D
+graphics acceleration processing capabilities, fully meet the needs of customers for high-speed and multimedia functions in
+industrial and consumer applications.
+H1641UP supports full coverage of all network systems, WI-FI 802.11a/b/g/n/ac, and BT5.0 near-field wireless
+communication. In addition, the H1641UP also has audio and video input and output interfaces and rich GPIO interfaces. It
+also supports a variety of audio and video codecs. The home screen supports FHD+1920*1200 at most. At the same time,
+H1641UP supports GPS+Glonass+BDS/Galieo positioning systems, making its positioning function fast and accurate.
+H1641UP is a patch module with a total of 301 pins, including 152 LCC pins and 149 LGA pins. The size is only 43.0mm
+× 44.0mm × 2.6mm, which can be embedded in various M2M product applications through pads, making it widely used in
+smart cash registers, smart POS, tax control machines, security monitoring, vehicle equipment, and high-end information
+Collection equipment, smart robots, smart homes, smart hardware, industrial smart handheld devices, drones, high-end
+police or law enforcement equipment, smart intercom devices, smart wearables, vending machines, logistics cabinets and
+other equipment are used in different industries.
+Main Advantages
+Comprehensive coverage of multi-network standard
+Support Wi-Fi 802.11a/b/g/n/ac and BT5.0 short-range
+wireless communication
+ARM Cortex-A53 IEEE 802.11 Support Android 11
+Support GPS+GLONASS+BDS/Galileo satellite 64-bit processor (octa-core) a/b/g/n/ac
+positioning
+Support multiple audio and video codecs
+The main screen supports up to FHD+ 1920*1200
+Support 1080P@30fps video recording and playback
+Possess audio and video input and output interfaces GPS+GLONASS+BDS/Galileo Powerful multimedia BT5.0
+and rich GPIO interfaces
+WWW.AGENEWTECH.COM
+
+--- Page 5 ---
+H1641UP_Smart Module Specification
+LTE Cat4 H1641UP
+Region/Operator China/India
+Operating system Android 11
+Memory 32GB eMMC + 2GB LPDDR4X (Default) / 64GB eMMC + 4GB LPDDR4X (Optional)
+Module size (mm) 43.0× 44.0 ×2.6
+LCC + LGA
+Packaging
+Temperature Range
+Operating temperature: -20 °C ~ + 80 °C
+Operation Temperature
+Storage temperature range：-40 °C ~ + 90 °C
+Frequency Band Information
+LTE-FDD B1/B3/B5/B7/B8/B20
+LTE-TDD B34/B38/B39/B40/B41
+WCDMA B1/B2/B5/B8
+TD-SCDMA B34/B39
+GSM/EDGE B2/B3/B5/B8
+WLAN 2.4/5GHz, 802.11 a/b/g/n/ac
+Bluetooth BT 5.0
+GNSS GPS+GLONASS+BDS/Galileo
+Authentication
+Operator Certification Undetermined
+Compulsory Certification Undetermined
+Other Certifications CE
+Data Rate
+LTE-FDD (Mbps) 150Mbps （DL）/50Mbps （UL）
+LTE-TDD (Mbps) 150Mbps （DL）/50Mbps（UL）
+DC-HSPA+ (Mbps) 42Mbps （DL）/11.2Mbps（UL）
+WCDMA (Kbps) 384Kbps （DL）/384Kbps（UL）
+EDGE (Kbps) 296Kbps（DL）/236.8Kbps（UL）
+GPRS (Kbps) 107Kbps（DL）/85.6Kbps（UL）
+Outstanding characteristics
+LTE: Release 12
+Six-mode
+UMTS: Release 9
+Bandwidth（MHz） 1.4/3/5/10/15/20
+Rx-Diversity ●
+DL Support MIMO 2 × 2 ●
+SIM Card Detection ●
+Dual Sim Dual Standby ●
+USB Firmware Upgrade ●
+OTA Firmware Upgrade ●
+Remarks:1.*:Inprogress
+2. ●:Supports
+WWW.AGENEWTECH.COM
+
+--- Page 6 ---
+H1641UP_Smart Module Specification
+LTE Cat4 H1641UP
+Electrical Specification
+Operating Voltage 3.4~4.4 V, typical value3.8 V
+Consumption (typical) Undetermined
+Interface
+LCD 4-lane MIPI_DSI, support horizontal screen, Resolution up to FHD+ 1920×1200@60fps
+Camera 2 4-lane MIPI CSI, Support 2 sets of camera, up to 21MP
+Scanner Lens 1 4-lane MIPI CSI
+TP Capacitive touch screen
+Audio Lineout port, receiver, headphones, and 3 sets of microphones
+USB USB 2.0(support OTG)
+(U)SIM Dual card (1.8V/3.0V)
+UART 2 groups of UART for debugging and application
+SD Card Supports SD card (SD3.0)
+ADC 3 groups of ADC interfaces, 2 of which are dedicated to battery ID detection
+I2C 5 groups of I2C interfaces for touch screen, camera, sensor and other peripherals
+5 groups of SPI interface, the module can only be the main device; One group of SPI can be reused as I2S
+SPI
+interface
+PWRKEY Internal pull up to VBAT
+GPIO 28 groups of special GPIO ports and 6 groups of general GPIO ports are reserved
+Antenna Main antenna, Diversity antenna, GNSS antenna, Wi-Fi 2.4G& Bluetooth antenna, Wi-Fi 5G antenna
+WWW.AGENEWTECH.COM

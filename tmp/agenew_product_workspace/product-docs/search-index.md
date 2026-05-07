@@ -1,0 +1,44 @@
+# Agenew Product Search Index
+
+One-line index for quick model/document lookup.
+
+- H1502BQ | English | V1.3 | text=product-docs/extracted/h1502bq-en-v1-3.txt | pdf=product-docs/pdf/Agenewtech_H1502BQ_Smart Module Specification_V1.3.pdf
+- H1502BQ | Chinese | V1.3 | text=product-docs/extracted/h1502bq-zh-v1-3.txt | pdf=product-docs/pdf/Agenewtech_H1502BQ_智能模块产品规格书_V1.3.pdf
+- H1502RQ | English | V1.3 | text=product-docs/extracted/h1502rq-en-v1-3.txt | pdf=product-docs/pdf/Agenewtech_H1502RQ_Smart Module Specification_V1.3.pdf
+- H1502RQ | Chinese | V1.3 | text=product-docs/extracted/h1502rq-zh-v1-3.txt | pdf=product-docs/pdf/Agenewtech_H1502RQ_智能模块产品规格书_V1.3.pdf
+- H1502UQ | English | V1.3 | text=product-docs/extracted/h1502uq-en-v1-3.txt | pdf=product-docs/pdf/Agenewtech_H1502UQ_Smart Module Specification_V1.3.pdf
+- H1502UQ | Chinese | V1.3 | text=product-docs/extracted/h1502uq-zh-v1-3.txt | pdf=product-docs/pdf/Agenewtech_H1502UQ_智能模块产品规格书_V1.3.pdf
+- H1503BQ | English | V1.7 | text=product-docs/extracted/h1503bq-en-v1-7.txt | pdf=product-docs/pdf/Agenewtech_H1503BQ_Smart Module Specification_V1.7.pdf
+- H1503BQ | Chinese | V1.7 | text=product-docs/extracted/h1503bq-zh-v1-7.txt | pdf=product-docs/pdf/Agenewtech_H1503BQ_智能模块产品规格书_V1.7.pdf
+- H1503RQ | English | V1.3 | text=product-docs/extracted/h1503rq-en-v1-3.txt | pdf=product-docs/pdf/Agenewtech_H1503RQ_Smart Module Specification_V1.3.pdf
+- H1503RQ | Chinese | V1.3 | text=product-docs/extracted/h1503rq-zh-v1-3.txt | pdf=product-docs/pdf/Agenewtech_H1503RQ_智能模块产品规格书_V1.3.pdf
+- H1503UQ | English | V1.7 | text=product-docs/extracted/h1503uq-en-v1-7.txt | pdf=product-docs/pdf/Agenewtech_H1503UQ_Smart Module Specification_V1.7.pdf
+- H1503UQ | Chinese | V1.7 | text=product-docs/extracted/h1503uq-zh-v1-7.txt | pdf=product-docs/pdf/Agenewtech_H1503UQ_智能模块产品规格书_V1.7.pdf
+- H1504TQ | English | V1.5 | text=product-docs/extracted/h1504tq-en-v1-5.txt | pdf=product-docs/pdf/Agenewtech_H1504TQ_Smart Module Specification_V1.5.pdf
+- H1504TQ | Chinese | V1.5 | text=product-docs/extracted/h1504tq-zh-v1-5.txt | pdf=product-docs/pdf/Agenewtech_H1504TQ_智能模块产品规格书_V1.5.pdf
+- H1641BP | English | V2.1 | text=product-docs/extracted/h1641bp-en-v2-1.txt | pdf=product-docs/pdf/Agenewtech_H1641BP_Smart Module Specification_V2.1.pdf
+- H1641BP | Chinese | V2.1 | text=product-docs/extracted/h1641bp-zh-v2-1.txt | pdf=product-docs/pdf/Agenewtech_H1641BP_智能模块规格书_V2.1.pdf
+- H1641RP | English | V2.2 | text=product-docs/extracted/h1641rp-en-v2-2.txt | pdf=product-docs/pdf/Agenewtech_H1641RP_Smart Module Specification_V2.2.pdf
+- H1641RP | Chinese | V2.2 | text=product-docs/extracted/h1641rp-zh-v2-2.txt | pdf=product-docs/pdf/Agenewtech_H1641RP_智能模块产品规格书_V2.2.pdf
+- H1641UP | English | V2.1 | text=product-docs/extracted/h1641up-en-v2-1.txt | pdf=product-docs/pdf/Agenewtech_H1641UP_Smart Module Specification_V2.1.pdf
+- H1641UP | Chinese | V2.1 | text=product-docs/extracted/h1641up-zh-v2-1.txt | pdf=product-docs/pdf/Agenewtech_H1641UP_智能模块规格书_V2.1.pdf
+- H164YP | English | V1.3 | text=product-docs/extracted/h164yp-en-v1-3.txt | pdf=product-docs/pdf/Agenewtech_H164YP_Smart Module Specification_V1.3.pdf
+- H164YP | Chinese | V1.3 | text=product-docs/extracted/h164yp-zh-v1-3.txt | pdf=product-docs/pdf/Agenewtech_H164YP_智能模块产品规格书_V1.3.pdf
+- M1642ZP | English | V2.1 | text=product-docs/extracted/m1642zp-en-v2-1.txt | pdf=product-docs/pdf/Agenewtech_M1642ZP_Smart Module Specification_V2.1.pdf
+- M1642ZP | Chinese | V2.1 | text=product-docs/extracted/m1642zp-zh-v2-1.txt | pdf=product-docs/pdf/Agenewtech_M1642ZP_智能模块产品规格书_V2.1.pdf
+- M274F | English | V1.1 | text=product-docs/extracted/m274f-en-v1-1.txt | pdf=product-docs/pdf/Agenewtech_M274F_Smart Module Specification_V1.1.pdf
+- M274F | Chinese | V1.1 | text=product-docs/extracted/m274f-zh-v1-1.txt | pdf=product-docs/pdf/Agenewtech_M274F_智能模块规格书_V1.1.pdf
+- M274K | English | V1.1 | text=product-docs/extracted/m274k-en-v1-1.txt | pdf=product-docs/pdf/Agenewtech_M274K_Smart Module Specification_V1.1.pdf
+- M274K | Chinese | V1.1 | text=product-docs/extracted/m274k-zh-v1-1.txt | pdf=product-docs/pdf/Agenewtech_M274K_智能模块规格书_V1.1.pdf
+- M293GO | English | V2.1 | text=product-docs/extracted/m293go-en-v2-1.txt | pdf=product-docs/pdf/Agenewtech_M293GO_Smart Module Specification_V2.1.pdf
+- M293GO | Chinese | V2.1 | text=product-docs/extracted/m293go-zh-v2-1.txt | pdf=product-docs/pdf/Agenewtech_M293GO_智能模块规格书_V2.1.pdf
+- M318GO | English | V1.1 | text=product-docs/extracted/m318go-en-v1-1.txt | pdf=product-docs/pdf/Agenewtech_M318GO_Smart Module Specification_V1.1.pdf
+- M318GO | Chinese | V1.1 | text=product-docs/extracted/m318go-zh-v1-1.txt | pdf=product-docs/pdf/Agenewtech_M318GO_智能模块规格书_V1.1.pdf
+- M3281V | English | V2.2 | text=product-docs/extracted/m3281v-en-v2-2.txt | pdf=product-docs/pdf/Agenewtech_M3281V_Smart Module Specification_V2.2.pdf
+- M3281V | English | V2.3 | text=product-docs/extracted/m3281v-en-v2-3.txt | pdf=product-docs/pdf/Agenewtech_M3281V_Smart Module Specification_V2.3.pdf
+- M3281V | Chinese | V2.2 | text=product-docs/extracted/m3281v-zh-v2-2.txt | pdf=product-docs/pdf/Agenewtech_M3281V_智能模块规格书_V2.2.pdf
+- M3281V | Chinese | V2.3 | text=product-docs/extracted/m3281v-zh-v2-3.txt | pdf=product-docs/pdf/Agenewtech_M3281V_智能模块规格书_V2.3.pdf
+- M328L | English | V1.4 | text=product-docs/extracted/m328l-en-v1-4.txt | pdf=product-docs/pdf/Agenewtech_M328L_Smart Module Specification_V1.4.pdf
+- M328L | Chinese | V1.4 | text=product-docs/extracted/m328l-zh-v1-4.txt | pdf=product-docs/pdf/Agenewtech_M328L_智能模块规格书_V1.4.pdf
+- M328S | English | V2.1 | text=product-docs/extracted/m328s-en-v2-1.txt | pdf=product-docs/pdf/Agenewtech_M328S_Smart Module Specification_V2.1.pdf
+- M328S | Chinese | V2.1 | text=product-docs/extracted/m328s-zh-v2-1.txt | pdf=product-docs/pdf/Agenewtech_M328S_智能模块规格书_V2.1.pdf

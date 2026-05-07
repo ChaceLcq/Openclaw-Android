@@ -1,0 +1,161 @@
+Source PDF: product-docs/pdf/Agenewtech_M1642ZP_Smart Module Specification_V2.1.pdf
+Model: M1642ZP
+Language: English
+Version: V2.1
+Extractor: pdfplumber
+Extracted at: 2026-05-07T09:49:05
+
+--- Page 1 ---
+AGENEWTECH
+M1642ZP
+Smart Module Specification_V2.1
+www.agenewtech.com
+
+--- Page 2 ---
+H150MP M1642ZP_Smart Module Specification
+Our aim is to provide customers with timely and comprehensive service. For any assistance, please
+contact our company headquarters:
+Wuxi Sunning Technology Co., Ltd. (Abbreviation: Agenew)
+No.52, Zone C, Huigu Pioneer Park, Huishan Economic Development Zone, Wuxi
+Postal Code: 214174
+PhoneNum: +86 0510 8235 0372 Mailbox: Asupport@agenewtech.com
+Introduction
+AGENEW OFFERS THE DOCUMENT AS A SERVICE TO ITS CUSTOMERS. CUSTOMERS MUST DESIGN THEIR PRODUCTS
+ACCORDING TO THE SPECIFICATIONS AND PARAMETERS PROVIDED IN THE DOCUMENTS. AGENEW SHALL NOT BE LIABLE
+FOR ANY DAMAGE CAUSED BY FAILURE TO COMPLY WITH RELEVANT OPERATION OR DESIGN SPECIFICATIONS. AGENEW
+HAS THE RIGHT TO UPDATE THE DOCUMENT BEFORE IT IS ANNOUNCED.
+Disclaimers
+AGENEW MAKES EFFORT TO ENSURE THE INTEGRITY, ACCURACY, TIMELINESS OR UTILITY OF THE FUNCTIONS UNDER
+DEVELOPMENT, BUT DOES NOT EXCLUDE THE POSSIBILITY OF ERRORS OR OMISSIONS OF THE ABOVE FUNCTIONS. UNLESS
+OTHERWISE SPECIFIED VALID AGREEMENTS, AGENEW MAKES NO IMPLIED OR EXPRESS GUARANTEE FOR THE USE OF
+FUNCTIONS UNDER DEVELOPMENT. TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAWS, AGENEW SHALL NOT BE
+LIABLE FOR ANY LOSS OR DAMAGE SUFFERED DUE TO THE USE OF THE FUNCTIONS UNDER DEVELOPMENT, WHETHER SUCH
+LOSS OR DAMAGE IS FORESEEABLE OR NOT.
+Copyright
+THE INFORMATION CONTAINED HERE IS PROPRIETARY TECHNICAL INFORMATION OF WUXI SUNNING TECHNOLOGY
+CO.,LTD. ANY COPIES AND REPRINTS THIS DOCUMENT WITHOUT THE PERMISSION OF AGENEW WILL BEAR LEGAL
+RESPONSIBILITY.
+Copyright © Wuxi Sunning Technology Co., Ltd. 2026. All rights reserved.
+WWW.AGENEWTECH.COM
+
+--- Page 3 ---
+H150MP M1642ZP_Smart Module Specification
+About the Document
+History
+Version Data Author Description
+- 2023-12-26 Zhou Yuqiang Initial
+1.0 2023-12-28 Huang Zizhen Controlled Copy
+2.0 2024-05-05 Wu Danyi Modified to a single-sided version definition
+2.1 2026-03-23 Chen Yun Change company name
+WWW.AGENEWTECH.COM
+
+--- Page 4 ---
+H150MP M1642ZP_Smart Module Specification
+M1642ZP
+Multi-network Smart LTE module
+Supports Wi-Fi & BT
+M1642ZP is a multi-network Smart LTE Cat 7 module based on MediaTek's Octa-core MT8781 (ARM Cortex-A76+ARM
+Cortex-A55) processor launched by Wuxi Sunning Technology Co., Ltd, which is equipped with Android 13 operating system.
+Its powerful performance, neon engine processing, 2D/3D graphics acceleration processing capabilities, fully meet the needs
+of customers for high-speed and multimedia functions in industrial and consumer applications.
+M1642ZP supports full coverage of various network standards, Wi-Fi 802.11a/b/g/n/ac and BT5.2 LE short-range
+communication. Not only that, M1642ZP also has audio and video I/O interfaces and rich GPIO interfaces, but also supports
+a variety of audio and video codecs, and the main screen supports up to 2K. At the same time, the positioning system of
+GPS/GLONASS/BDS/Galileo are supported by M1642ZP makes its positioning function fast and accurate.
+M1642ZP is a SMT module with 321 pins, including 152 LCC pins and 169 LGA pins. With a size of only 43.0mm ×
+44.0mm × 2.6mm, it can be embedded in various M2M products through pads, making it widely used in smart cash registers,
+smart POS, tax control machines, security monitoring, vehicle-mounted equipment, high-end information collection equipment,
+intelligent robots, smart homes, smart hardware, industrial smart handheld equipment, unmanned aerial vehicles, high-end
+police or law enforcement equipment, smart intercom equipment, smart wearing and vending machines.
+Main Advantages
+ARM A76+ A55 ARM G57 MC2® Support Android 13
+64-bit Processor
+Comprehensive coverage of multi-network standard.
+（Octa-core）
+Support Wi-Fi 802.11a/b/g/n/ac and BT5.2 short-range
+wireless communication
+Support GPS/GLONASS/BDS/Galileo satellite LTE Cat 7 IEEE 802.11 Bluetooth 5.2
+Max 300Mbps (DL) a/b/g/n/ac (BR/EDR + BLE)
+positioning
+Max 75 Mbps (UL)
+Support multiple audio and video codecs
+The main screen supports up to 2000×1200
+Support 2K@30fps video recording and playback
+GPS/GLONASS/ NEON LCC + LGA
+Possess audio and video input and output interfaces BeiDou/Galieo Multimedia encapsulation
+processing engine
+and rich GPIO interfaces
+WWW.AGENEWTECH.COM
+
+--- Page 5 ---
+H150MP M1642ZP_Smart Module Specification
+LTE 4G M1642ZP
+China/India/South Korea/Thailand/Japan/Australia/Taiwan/Brazil, Europe, Middle East, Africa,
+Region/Operator
+North America, Latin America
+Operating system Android 13
+Memory UFS 64G+LPDDR4X 32G
+Module size (mm) 43.0 × 44.0 × 2.6
+Packaging LCC + LGA
+Temperature range
+Operating temperature: -20 °C ~ + 80 °C
+Operation temperature
+Storage temperature: -40 °C ~ + 90 °C
+Frequency band information
+LTE-FDD B1/B3/B5/B7/B8/B20/B28
+LTE-TDD B34/B38/B39/B40/B41(120M)
+WCDMA B1/B2/B5/B8
+GSM/EDGE B2/B3/B5/B8
+WLAN 2.4/5GHz, 802.11a/b/g/n/ac, support AP and STA mode
+Bluetooth BT 5.2
+GNSS GPS/GLONASS/Beidou/Galileo
+Authentication
+Operator Certification Undetermined
+Compulsory Certification CE/SRRC*/NAL*/CCC*
+Other Certifications RoHS/REACH
+Frequency Band Information
+LTE-FDD (Mbps) 300Mbps (DL)/75Mbps (UL)
+LTE-TDD (Mbps) 240Mbps (DL)/75Mbps (UL)
+DC-HSPA+ (Mbps) 42Mbps (DL)/11.5Mbps (UL)
+WCDMA (Kbps) 384Kbps (DL)/384Kbps (UL)
+EDGE (Kbps) 236Kbps (DL)/236Kbps (UL)
+GPRS (Kbps) 85.6Kbps (DL)/85.6Kbps (UL)
+Outstanding characteristics
+LTE: Cat7 2CA
+Five-mode communication
+UMTS: Release 8
+Bandwidth (MHz) 1.4-20MHz
+Charging chip ●
+OTG ●
+SIM card detection ●
+Dual sim dual standby ●
+USB Firmware upgrade ●
+OTA Firmware upgrade ●
+Remarks: 1. *: In progress
+2. ●: Supports
+WWW.AGENEWTECH.COM
+
+--- Page 6 ---
+H150MP M1642ZP_Smart Module Specification
+LTE Cat4 M1642ZP
+Electrical specification
+Operating Voltage 3.4~4.4 V, typical 3.8 V
+Consumption (typical) Undetermined
+Interface
+LCD Video codec: 2K@30fps; Wi-Fi video: encoding up to 2K@30fps; Decode up to 2K @30fps
+Camera 3-set 4-lane MIPI CSI, supports three groups of cameras, and can support up to 32MP pixels
+TP Capacitive touch screen
+3 analog inputs: 3 sets of analog microphone inputs
+Audio
+3 analog outputs: speaker, earpiece, headphones
+USB USB 2.0, support OTG mode
+(U)SIM ×2 (1.8V/2.95V)
+UART ×2, for debugging and application
+SD Card ×1
+ADC ×2
+I2C ×7, for control peripherals
+SPI ×5
+PWRKEY Pull up internally to VBAT
+GPIO 14 GPIO interfaces and 28 dedicated GPIOs (reusable)
+Antenna Main antenna, diversity antenna, GNSS antenna, Wi-Fi 2.4G&BT antenna, Wi-Fi 5G antenna
+WWW.AGENEWTECH.COM

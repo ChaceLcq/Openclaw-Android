@@ -122,7 +122,7 @@ class LocalMnnAsrEngine(
     val active = synchronized(lock) { wrapper } ?: return null
     val started = SystemClock.elapsedRealtime()
     return try {
-      val text = active.recognize(samples)?.trim()
+      val text = active.recognize(samples, countForRecycle = kind != "partial")?.trim()
       Log.d(TAG, "ASR $kind samples=${samples.size} durMs=${SystemClock.elapsedRealtime() - started} text=${text.orEmpty()}")
       text
     } catch (err: Throwable) {

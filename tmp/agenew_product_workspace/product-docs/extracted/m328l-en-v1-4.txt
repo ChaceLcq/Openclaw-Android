@@ -1,0 +1,146 @@
+Source PDF: product-docs/pdf/Agenewtech_M328L_Smart Module Specification_V1.4.pdf
+Model: M328L
+Language: English
+Version: V1.4
+Extractor: pdfplumber
+Extracted at: 2026-05-07T09:49:14
+
+--- Page 1 ---
+AGENEWTECH
+M328L
+Smart Module Specification_V1.4
+www.agenewtech.com
+
+--- Page 2 ---
+M328L_Smart Module Specification
+Our aim is to provide customers with timely and comprehensive service. For any assistance, please
+contact our company headquarters:
+Wuxi Sunning Technology Co., Ltd. (Abbreviation: Agenew)
+No.52, Zone C, Huigu Pioneer Park, Huishan Economic Development Zone, Wuxi
+Postal Code: 214174
+PhoneNum: +86 0510 8235 0372 Mailbox: Asupport@agenewtech.com
+Introduction
+AGENEW OFFERS THE DOCUMENT AS A SERVICE TO ITS CUSTOMERS. CUSTOMERS MUST DESIGN THEIR PRODUCTS
+ACCORDING TO THE SPECIFICATIONS AND PARAMETERS PROVIDED IN THE DOCUMENTS. AGENEW SHALL NOT BE LIABLE
+FOR ANY DAMAGE CAUSED BY FAILURE TO COMPLY WITH RELEVANT OPERATION OR DESIGN SPECIFICATIONS. AGENEW
+HAS THE RIGHT TO UPDATE THE DOCUMENT BEFORE IT IS ANNOUNCED.
+Disclaimers
+AGENEW MAKES EFFORT TO ENSURE THE INTEGRITY, ACCURACY, TIMELINESS OR UTILITY OF THE FUNCTIONS UNDER
+DEVELOPMENT, BUT DOES NOT EXCLUDE THE POSSIBILITY OF ERRORS OR OMISSIONS OF THE ABOVE FUNCTIONS. UNLESS
+OTHERWISE SPECIFIED VALID AGREEMENTS, AGENEW MAKES NO IMPLIED OR EXPRESS GUARANTEE FOR THE USE OF
+FUNCTIONS UNDER DEVELOPMENT. TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAWS, AGENEW SHALL NOT BE
+LIABLE FOR ANY LOSS OR DAMAGE SUFFERED DUE TO THE USE OF THE FUNCTIONS UNDER DEVELOPMENT, WHETHER SUCH
+LOSS OR DAMAGE IS FORESEEABLE OR NOT.
+Copyright
+THE INFORMATION CONTAINED HERE IS PROPRIETARY TECHNICAL INFORMATION OF WUXI SUNNING TECHNOLOGY
+CO.,LTD. ANY COPIES AND REPRINTS THIS DOCUMENT WITHOUT THE PERMISSION OF AGENEW WILL BEAR LEGAL
+RESPONSIBILITY.
+Copyright © Wuxi Sunning Technology Co., Ltd. 2026. All rights reserved.
+WWW.AGENEWTECH.COM
+
+--- Page 3 ---
+M328L_Smart Module Specification
+About the Document
+History
+Version Date Author Description
+- 2025-03-25 Daniel Wu Initial
+1.0 2025-03-27 Daniel Wu Controlled
+1.1 2025-07-01 Daniel Wu Update the software version to Android15
+1.2 2025-08-19 Xiaochen Huang Update and supplement interface
+1.3 2025-11-30 Daniel Wu Update WIFI 6E
+1.4 2026-03-23 Chen Yun Change company name
+WWW.AGENEWTECH.COM
+
+--- Page 4 ---
+M328L_Smart Module Specification
+M328L
+Smart Computing Power
+Module
+Supports Wi-Fi & BT
+M328L is a Wi-Fi smart computing module based on MediaTek’s Octa-core MT8371 6nm processor (2×ARM Cortex-
+A78@2.2GHz + 6×ARM Cortex-A55@2.0GHz) launched by AGENEW, with inbuilt ARM Mali G57 MC2 GPU and NPU 8.0,
+equipped with Android 15 operating system. Its powerful performance, neon engine processing, 2D/3D graphics acceleration
+capabilities, fully meet the needs of customers for high-speed and high-computing-power functions in industrial and consumer
+applications.
+M328L supports 2 × 2 Wi-Fi 6E and BT5.3 near-field wireless communication. In addition, M328L also has audio and
+video input/output interfaces and rich GPIO interfaces, including LCM display modules, touchscreens, cameras, microphones,
+speakers, UART, USB, I2C, SPI, PCIe, etc. It supports various audio and video codecs. The main screen supports up to
+UW5K60(5120×2160) @60fps or 4K60(3840×2160) @60fps. AI computing power reaches 10 TOPS.
+M328L is a SMT module, with a total of 455 pins, all of which are LGA pins, with a size of 42mm×46mm×2.6mm, which
+can be embedded in various M2M product applications through the pad, making it widely used in video conferencing, live
+streaming, gaming, edge computing, robotics, drones, augmented reality/virtual reality (AR/VR), and other terminal products
+and industries.
+Main Advantages
+Built-in AI unit, support 10T computing power
+Support Android 15
+Support 2×2 Wi-Fi 6E & Bluetooth 5.3 short-
+64-bit Processor (Octa-core) Wi-Fi 6E 2×2 Support Android 15
+range wireless communication
+Support multiple audio and video codecs
+Main screen supports up to UW5K60(5120×2160)
+@60fps or 4K60(3840×2160) @60fps
+Support DP1.4
+Support 4K@60fps video recording and playback
+Abundant audio/video input and output interfaces
+10 TOPS Powerful Multimedia BT 5.3
+and GPIO interfaces
+WWW.AGENEWTECH.COM
+
+--- Page 5 ---
+M328L_Smart Module Specification
+AI M328L
+Region/Operator China
+Operating System Android 15
+Memory 128GB UFS 3.1 + 8GB LPDDR5X
+Module Dimension (mm) 42 × 46 × 2.6
+Packaging LGA
+Temperature Range
+Operating temperature range: -20 °C ~ + 80 °C
+Operation Temperature
+Storage temperature range: -40 °C ~ + 90 °C
+Certification
+Compulsory Certification Undetermined
+Other Certifications Undetermined
+Features
+AI 10 TOPS
+Wi-Fi Wi-Fi 6E 2×2(MT6637X)
+BT BT 5.3
+Video Encoding 4K@30fps
+Video Decoding 4K@60fps
+USB Firmware Update ●
+OTA Firmware Update ●
+Electrical Specification
+Operating Voltage 3.4~4.5 V, typical 3.8 V
+Consumption (Typical) 200μA @ power off, 5.5mA @ sleep mode, typical
+Interface
+Support up to UW5K60(5120×2160)@60fps or 4K60(3840×2160)@60fps
+LCD
+2 × 4-lane MIPI DSI, eDP1.4 4-lane，DP1.4 4-lane (Type-C)
+4-lane MIPI CSI
+Camera
+Support Single camera up to 16MP@30fps
+TP Capacitive touch screen, I2C control
+Audio Lineout Interface (Require external audio amplifier) × 1, headphone × 1, simulated MIC ×4, digital MIC ×2
+USB USB2.0 × 3, USB 3.2 Gen1 × 1, DPoC USB3.2 Gen1 × 1
+UART × 4
+SDIO × 2
+ADC × 2, universal ADC interface
+I2C × 8, for TP, Cameras, Sensors, etc.
+SPI × 6
+PWM × 4
+Motor Driven × 1
+I2S × 2
+PCIe × 1
+KEYPAD × 7,for pow,rst,etc.
+GPIO × 183
+WWW.AGENEWTECH.COM
+
+--- Page 6 ---
+M328L_Smart Module Specification
+AI M328L
+DMIC × 2
+GBE × 1
+eDP × 1
+PCM × 2
+Antenna Wi-Fi Antenna ×1, Wi-Fi & Bluetooth Antenna ×1
+WWW.AGENEWTECH.COM

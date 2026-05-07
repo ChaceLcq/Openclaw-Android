@@ -1,0 +1,120 @@
+Source PDF: product-docs/pdf/Agenewtech_M274F_Smart Module Specification_V1.1.pdf
+Model: M274F
+Language: English
+Version: V1.1
+Extractor: pdfplumber
+Extracted at: 2026-05-07T09:49:07
+
+--- Page 1 ---
+AGENEWTECH
+M274F
+Smart Module Specification_V1.1
+www.agenewtech.com
+
+--- Page 2 ---
+M274F_Smart Module Specification
+Our aim is to provide customers with timely and comprehensive service. For any assistance, please
+contact our company headquarters:
+Wuxi Sunning Technology Co., Ltd. (Abbreviation: Agenew)
+No.52, Zone C, Huigu Pioneer Park, Huishan Economic Development Zone, Wuxi
+Postal Code: 214174
+PhoneNum: +86 0510 8235 0372 Mailbox: Asupport@agenewtech.com
+Introduction
+AGENEW OFFERS THE DOCUMENT AS A SERVICE TO ITS CUSTOMERS. CUSTOMERS MUST DESIGN THEIR PRODUCTS
+ACCORDING TO THE SPECIFICATIONS AND PARAMETERS PROVIDED IN THE DOCUMENTS. AGENEW SHALL NOT BE LIABLE
+FOR ANY DAMAGE CAUSED BY FAILURE TO COMPLY WITH RELEVANT OPERATION OR DESIGN SPECIFICATIONS. AGENEW
+HAS THE RIGHT TO UPDATE THE DOCUMENT BEFORE IT IS ANNOUNCED.
+Disclaimers
+AGENEW MAKES EFFORT TO ENSURE THE INTEGRITY, ACCURACY, TIMELINESS OR UTILITY OF THE FUNCTIONS UNDER
+DEVELOPMENT, BUT DOES NOT EXCLUDE THE POSSIBILITY OF ERRORS OR OMISSIONS OF THE ABOVE FUNCTIONS. UNLESS
+OTHERWISE SPECIFIED VALID AGREEMENTS, AGENEW MAKES NO IMPLIED OR EXPRESS GUARANTEE FOR THE USE OF
+FUNCTIONS UNDER DEVELOPMENT. TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAWS, AGENEW SHALL NOT BE
+LIABLE FOR ANY LOSS OR DAMAGE SUFFERED DUE TO THE USE OF THE FUNCTIONS UNDER DEVELOPMENT, WHETHER SUCH
+LOSS OR DAMAGE IS FORESEEABLE OR NOT.
+Copyright
+THE INFORMATION CONTAINED HERE IS PROPRIETARY TECHNICAL INFORMATION OF WUXI SUNNING TECHNOLOGY
+CO.,LTD. ANY COPIES AND REPRINTS THIS DOCUMENT WITHOUT THE PERMISSION OF AGENEW WILL BEAR LEGAL
+RESPONSIBILITY.
+Copyright © Wuxi Sunning Technology Co., Ltd. 2026. All rights reserved.
+WWW.AGENEWTECH.COM
+
+--- Page 3 ---
+M274F_Smart Module Specification
+About the Document
+History
+Version Date Author Description
+- 2023-05-16 Initial
+1.1 2026-03-24 Chen Yun Update the company name
+WWW.AGENEWTECH.COM
+
+--- Page 4 ---
+M274F_Smart Module Specification
+M274F
+Supports Wi-Fi & BT
+M274F is a smart module based on MediaTek Octa-core 2*ARM Cortex-A78 and 4*ARM Cortex-A55 processor launched
+by Agenew, which is equipped with Android 13 operation system. It has powerful performance, neon engine processing,
+2D/3D graphics acceleration processing capability, and fully meets customer’s demands for high speed and multimedia
+functions in industrial and consumer applications.
+M274F supports full coverage of all network systems, Wi-Fi 802.11a/b/g/n/ac/ax, and BT5.2 near-field wireless
+communication. In addition, M274F also has audio and video input and output interfaces and rich GPIO interfaces. It also
+supports a variety of audio and video codecs.
+M274F is a patch module with a total of 285 pins, including 208 LCC pins and 77 LGA pins. The size is only 55.0mm×
+55.0mm×3.7mm, which can be embedded in various M2M product applications through pads, making it widely used in smart
+cash registers, smart POS, tax control machines, security monitoring, vehicle equipment, and high-end information collection
+equipment, smart robots, smart homes, smart hardware, industrial smart handheld devices, drones, high-end police or law
+enforcement equipment, smart intercom devices, smart wearables, vending machines, logistics cabinets and other equipment
+are used in different industries.
+Main Advantages
+Support Wi-Fi802.11a/b/g/n/ac/ax and BT5.2 LE 2*Arm Cortex-A78 IEEE 802.11
+Support Android 13
++4*Arm Cortex-A55 a/b/g/n/ac/ax
+short-range wireless communication;
+64-bit processor
+Support ethernet communication;
+Support multiple audio and video codecs;
+Possess audio and video input and output interfaces
+and rich GPIO interfaces
+Multimedia process
+BT 5.2
+engine
+WWW.AGENEWTECH.COM
+
+--- Page 5 ---
+M274F_Smart Module Specification
+WIFI M274F
+Operating System Android 13
+Memory eMMC 5.1 64GB + LPDDR4X 8GB
+Module Size(mm) 55.0 × 55.0 × 3.7
+LCC + LGA
+Package
+Temperature Range
+Operating temperature range: -20 °C ~ + 60 °C
+Operating Temperature
+Storage temperature range: -30 °C ~ + 80 °C
+WIFI & BT
+WLAN 2.4/5GHz, 802.11 a/b/g/n/ac/ax
+Bluetooth Bluetooth 5.2
+Authentication
+Operator Certification Undetermined
+Compulsory Certification Undetermined
+Electrical Specification
+Operating Voltage 3.4~4.5 V, typical value: 4 V
+Power Consumption Undetermined
+Interface
+LCD1: MIPI DIS 4Lane or EDP 2 Lane, 2K@60fps
+Display
+LCD2: DP 4Lane or HDMI TX 2.0, 4K@60fps
+Camera 2 4-laneMIPI_CSI，support 2 sets of cameras, up to 32MP
+TP Capacitive touch screen
+Audio Receiver, earphone and 2 sets of microphones
+USB USB3×1，USB2×2，support OTG
+UART 3 sets of UART for debugging and applications
+SD Card Support SD card (SD3.0)
+ADC 2 sets of general ADC interface
+I2C 6 sets of I2C interfaces for TP, camera, sensor and other peripherals
+I2S 2 sets of I2S interfaces, support I2S peripheral devices
+SPI 3 sets of SPI interfaces
+PWRKEY Internally pull up to VSYS
+PCIE 1 set of PCIE interface
+DPI 1 set of DPI interface
+WWW.AGENEWTECH.COM

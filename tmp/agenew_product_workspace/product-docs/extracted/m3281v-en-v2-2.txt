@@ -1,0 +1,128 @@
+Source PDF: product-docs/pdf/Agenewtech_M3281V_Smart Module Specification_V2.2.pdf
+Model: M3281V
+Language: English
+Version: V2.2
+Extractor: pdfplumber
+Extracted at: 2026-05-07T09:49:12
+
+--- Page 1 ---
+AGENEWTECH
+M3281V
+Smart Module Specification_V2.2
+www.agenewtech.com
+
+--- Page 2 ---
+M3281V_Smart Module Specification
+Our aim is to provide customers with timely and comprehensive service. For any assistance, please
+contact our company headquarters:
+Wuxi Sunning Technology Co., Ltd. (Abbreviation: Agenew)
+No.52, Zone C, Huigu Pioneer Park, Huishan Economic Development Zone, Wuxi
+Postal Code: 214174
+PhoneNum: +86 0510 8235 0372 Mailbox: Asupport@agenewtech.com
+Introduction
+AGENEW OFFERS THE DOCUMENT AS A SERVICE TO ITS CUSTOMERS. CUSTOMERS MUST DESIGN THEIR PRODUCTS
+ACCORDING TO THE SPECIFICATIONS AND PARAMETERS PROVIDED IN THE DOCUMENTS. AGENEW SHALL NOT BE LIABLE
+FOR ANY DAMAGE CAUSED BY FAILURE TO COMPLY WITH RELEVANT OPERATION OR DESIGN SPECIFICATIONS. AGENEW
+HAS THE RIGHT TO UPDATE THE DOCUMENT BEFORE IT IS ANNOUNCED.
+Disclaimers
+AGENEW MAKES EFFORT TO ENSURE THE INTEGRITY, ACCURACY, TIMELINESS OR UTILITY OF THE FUNCTIONS UNDER
+DEVELOPMENT, BUT DOES NOT EXCLUDE THE POSSIBILITY OF ERRORS OR OMISSIONS OF THE ABOVE FUNCTIONS. UNLESS
+OTHERWISE SPECIFIED VALID AGREEMENTS, AGENEW MAKES NO IMPLIED OR EXPRESS GUARANTEE FOR THE USE OF
+FUNCTIONS UNDER DEVELOPMENT. TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAWS, AGENEW SHALL NOT BE
+LIABLE FOR ANY LOSS OR DAMAGE SUFFERED DUE TO THE USE OF THE FUNCTIONS UNDER DEVELOPMENT, WHETHER SUCH
+LOSS OR DAMAGE IS FORESEEABLE OR NOT.
+Copyright
+THE INFORMATION CONTAINED HERE IS PROPRIETARY TECHNICAL INFORMATION OF WUXI SUNNING TECHNOLOGY
+CO.,LTD. ANY COPIES AND REPRINTS THIS DOCUMENT WITHOUT THE PERMISSION OF AGENEW WILL BEAR LEGAL
+RESPONSIBILITY.
+Copyright © Wuxi Sunning Technology Co., Ltd. 2026. All rights reserved.
+WWW.AGENEWTECH.COM
+
+--- Page 3 ---
+M3281V_Smart Module Specification
+About the Document
+History
+Version Date Author Description
+- 2025-03-25 Daniel Wu Initial
+1.0 2025-03-27 Daniel Wu Controlled
+2.0 2025-12-18 Daniel Wu Disable the WIFI and Bluetooth functions
+2.1 2025-12-22 Daniel Wu Update the memory capacity
+2.2 2026-02-09 Daniel Wu Update the company name
+WWW.AGENEWTECH.COM
+
+--- Page 4 ---
+M3281V_Smart Module Specification
+M3281V
+Smart Computing Power Module
+M3281V is a smart computing module based on MediaTek’s Octa-core MT8893 4nm processor (1 × ARM Cortex-
+X4@3.25GHz + 3×ARM Cortex-X4@2.85GHz + 4×ARM Cortex-A720@2.0GHz) launched by AGENEW, with inbuilt ARM
+Immortalis-G720 GPU and 7th generation APU 790, equipped with Android 15 operating system. Its powerful performance,
+neon engine processing, 2D/3D graphics acceleration capabilities, fully meet the needs of customers for high-speed and
+high-computing-power functions in industrial and consumer applications.
+M3281V has audio and video input/output interfaces and rich GPIO interfaces, including LCM display modules,
+touchscreens, cameras, microphones, speakers, UART, USB, I2C, SPI, PCIe, etc. It supports various audio and video
+codecs. The main screen supports up to WQHD (1600×3680)@180fps or 4K (2160×3840)@144fps. AI computing power
+reaches 48 TOPS.
+M3281V is a SMT module, with a total of 544 pins, all of which are LGA pins, with a size of 42mm×46mm×2.6mm, which
+can be embedded in various M2M product applications through the pad, making it widely used in video conferencing, live
+streaming, gaming, edge computing, robotics, drones, augmented reality/virtual reality (AR/VR), and other terminal products
+and industries.
+Main Advantages
+Built-in AI unit, support 48T computing power
+Support Android 15
+1×ARM Cortex-X4@3.25GHz + Support Android 15
+Support multiple audio and video codecs 3×ARM Cortex-X4@2.85GHz +
+4×ARM Cortex-A720@2.0GHz
+Main screen supports up to WQHD (1600×3680)
+64-bit Processor (Octa-core)
+@180fps or 4K(2160×3840)@144fps
+Support DP1.4
+Support 8K@30fps video recording and playback
+Abundant audio/video input and output interfaces
+48 TOPS Powerful Multimedia
+and GPIO interfaces
+WWW.AGENEWTECH.COM
+
+--- Page 5 ---
+M3281V_Smart Module Specification
+AI M3281V
+Region/Operator China
+Operating System Android 15
+Memory 128GB UFS + 16GB LPDDR5X
+Module Dimension (mm) 42 × 46 × 2.6
+Packaging LGA
+Temperature Range
+Operating temperature range: -20 °C ~ + 80 °C
+Operation Temperature
+Storage temperature range: -40 °C ~ + 90 °C
+Certification
+Compulsory Certification Undetermined
+Other Certifications Undetermined
+Features
+AI 48 TOPS
+Video Encoding 8K@30fps
+Video Decoding 8K@60fps
+USB Firmware Update ●
+OTA Firmware Update ●
+Electrical Specification
+Operating Voltage 3.4~4.5 V, typical 3.8 V
+Consumption (Typical) 200μA @ power off, 5.5mA @ sleep mode, typical
+Interface
+LCD 2 × 4-lane MIPI DSI, max support WQHD (1600×3680)@180fps or 4K (2160×3840)@144fps
+6 × 4-lane MIPI CSI,Support Single camera up to 320MP in non-zero mode or 108MP@30fps
+Camera
+Support triple cameras (36MP + 36MP + 36MP)@30fps
+TP Capacitive touch screen, I2C control
+Audio Lineout Interface (External audio amplifier required) × 1, headphone × 1, simulated MIC ×6, digital MIC ×6
+USB 2.0 USB2.0 × 2，USB 3.1 Gen2 × 1
+UART × 2
+SD Card × 1, support SD3.0, support 4-bit SDIO
+ADC × 6, universal ADC interface
+I2C × 17, for TP, Cameras, Sensors, etc.
+SPI × 4
+PWM × 1
+Motor Driven × 1
+I2S × 2
+PWRKEY Internally pull - up to VBAT
+GPIO × 20
+WWW.AGENEWTECH.COM

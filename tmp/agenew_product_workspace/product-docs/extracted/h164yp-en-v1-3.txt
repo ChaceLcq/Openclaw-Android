@@ -1,0 +1,155 @@
+Source PDF: product-docs/pdf/Agenewtech_H164YP_Smart Module Specification_V1.3.pdf
+Model: H164YP
+Language: English
+Version: V1.3
+Extractor: pdfplumber
+Extracted at: 2026-05-07T09:49:03
+
+--- Page 1 ---
+AGENEWTECH
+H164YP
+Smart Module Specification_V1.3
+www.agenewtech.com
+
+--- Page 2 ---
+H164YP_Smart Module Specification
+Our aim is to provide customers with timely and comprehensive service. For any assistance, please
+contact our company headquarters:
+Wuxi Sunning Technology Co., Ltd. (Abbreviation: Agenew)
+No.52, Zone C, Huigu Pioneer Park, Huishan Economic Development Zone, Wuxi
+Postal Code: 214174
+PhoneNum: +86 0510 8235 0372 Mailbox: Asupport@agenewtech.com
+Introduction
+AGENEW OFFERS THE DOCUMENT AS A SERVICE TO ITS CUSTOMERS. CUSTOMERS MUST DESIGN THEIR PRODUCTS
+ACCORDING TO THE SPECIFICATIONS AND PARAMETERS PROVIDED IN THE DOCUMENTS. AGENEW SHALL NOT BE LIABLE
+FOR ANY DAMAGE CAUSED BY FAILURE TO COMPLY WITH RELEVANT OPERATION OR DESIGN SPECIFICATIONS. AGENEW
+HAS THE RIGHT TO UPDATE THE DOCUMENT BEFORE IT IS ANNOUNCED.
+Disclaimers
+AGENEW MAKES EFFORT TO ENSURE THE INTEGRITY, ACCURACY, TIMELINESS OR UTILITY OF THE FUNCTIONS UNDER
+DEVELOPMENT, BUT DOES NOT EXCLUDE THE POSSIBILITY OF ERRORS OR OMISSIONS OF THE ABOVE FUNCTIONS. UNLESS
+OTHERWISE SPECIFIED VALID AGREEMENTS, AGENEW MAKES NO IMPLIED OR EXPRESS GUARANTEE FOR THE USE OF
+FUNCTIONS UNDER DEVELOPMENT. TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAWS, AGENEW SHALL NOT BE
+LIABLE FOR ANY LOSS OR DAMAGE SUFFERED DUE TO THE USE OF THE FUNCTIONS UNDER DEVELOPMENT, WHETHER SUCH
+LOSS OR DAMAGE IS FORESEEABLE OR NOT.
+Copyright
+THE INFORMATION CONTAINED HERE IS PROPRIETARY TECHNICAL INFORMATION OF WUXI SUNNING TECHNOLOGY
+CO.,LTD. ANY COPIES AND REPRINTS THIS DOCUMENT WITHOUT THE PERMISSION OF AGENEW WILL BEAR LEGAL
+RESPONSIBILITY.
+Copyright © Wuxi Sunning Technology Co., Ltd. 2026. All rights reserved.
+WWW.AGENEWTECH.COM
+
+--- Page 3 ---
+H164YP_Smart Module Specification
+About the Document
+History
+Version Data Author Description
+- 2021-12-14 Guanqibin Initial
+1.0 2022-01-04 Guanqibin Controlled Copy
+1.1 2022-05-31 Yang Yanlian Correct errors
+1.2 2024-09-27 Wu Danyi Update Information
+1.3 2026-03-23 Chen Yun Change company name
+WWW.AGENEWTECH.COM
+
+--- Page 4 ---
+H164YP_Smart Module Specification
+H164YP
+Multi-network Smart 4G module
+Supports Wi-Fi & BT
+H164YP is a multi-network Smart LTE Cat 7 module based on MediaTek's Octa-core (Quad-core ARM Cortex-A73+
+Quad-core ARM Cortex-A53) processor launched by Wuxi Sunning Technology Co., Ltd, which is equipped with Android 11.0
+operating system. Its powerful performance, neon engine processing, 2D/3D graphics acceleration processing capabilities,
+fully meet the needs of customers for high-speed and multimedia functions in industrial and consumer applications.
+H164YP supports full coverage of various network standards, Wi-Fi 802.11a/b/g/n/ac and BT4.2 LE short-range
+communication. Not only that, H164YP also has audio and video I/O interfaces and rich GPIO interfaces, but also supports a
+variety of audio and video codecs, and the main screen supports up to FHD 2400×1080. At the same time, the positioning
+system of GPS+GLONASS+BDS/Galileo are supported by H164YP makes its positioning function fast and accurate.
+H164YP is a chip module with 323 pins, including 152 LCC pins and 171 LGA pins. With a size of only
+43.0mm×44.0mm×2.6mm, it can be embedded in various M2M products through pads, making it widely used in smart cash
+registers, smart POS, tax control machines, security monitoring, vehicle-mounted equipment, high-end information collection
+equipment, intelligent robots, smart homes, smart hardware, industrial smart handheld equipment, unmanned aerial vehicles,
+high-end police or law enforcement equipment, smart intercom equipment, smart wearing and vending machines.
+Main Advantages
+Comprehensive coverage of multi-network standard.
+Support Wi-Fi 802.11a/b/g/n/ac and BT4.2 short-range
+wireless communication Quad-core ARM Cortex-A73 IEEE 802.11 a/b/g/n/ac Support Android 11
++
+Support GPS+GLONASS+BDS/Galileo satellite Quad-core ARM Cortex-A53
+positioning
+Support multiple audio and video codecs
+The main screen supports up to FHD 2400×1080
+Support 1080P@30fps video recording and playback GPS+GLONASS+BDS/Galileo Powerful multimedia BT4.2
+Possess audio and video input and output interfaces
+and rich GPIO interfaces
+WWW.AGENEWTECH.COM
+
+--- Page 5 ---
+H164YP_Smart Module Specification
+LTE Cat7 H164YP
+Region/Operator China/Europe/Asia
+Operating system Android 9/11/14
+Memory 64 GB eMMC + 4 GB LPDDR4X(Default) / 32 GB eMMC + 3 GB LPDDR4X(Optional)
+Module size (mm) 43.0× 44.0 ×2.6
+Packaging LCC + LGA
+Temperature range
+Normal operating temperature: -20 °C ~ + 80°C
+Operation temperature
+Storage temperature range：-40 °C ~ + 90 °C
+Frequency band information
+LTE-FDD B1/B3/B5/B7/B8/B20
+LTE-TDD B34/B38/B39/B40/B41
+WCDMA B1/B2/B5/ B8
+GSM/EDGE B2/B3/B5/ B8
+WLAN 2.4/5GHz, 802.11 a/b/g/n/ac
+Bluetooth 4.2
+GNSS GPS + GLONASS + BDS/Galileo
+Authentication
+Operator Certification Undetermined
+Compulsory Certification CE/SRRC*/NAL*/CCC*
+Other Certifications RoHS/REACH
+Frequency Band Information
+LTE-FDD (Mbps) 300Mbps (DL)/75Mbps (UL)
+LTE-TDD (Mbps) 260Mbps (DL)/90Mbps (UL)
+DC-HSPA+ (Mbps) 42Mbps (DL)/11.2Mbps (UL)
+WCDMA (Kbps) 384Kbps (DL)/384Kbps (UL)
+EDGE (Kbps) 296Kbps (DL)/236.8Kbps (UL)
+GPRS (Kbps) 107Kbps (DL)/85.6Kbps (UL)
+Outstanding characteristics
+LTE: Release 12
+Six-mode communication
+UMTS: Release 9
+Bandwidth (MHz) 1.4 - 20 MHz Radio frequency bandwidth
+Charging chip ●
+OTG ●
+SIM card detection ●
+Dual sim dual standby ●
+USB Firmware upgrade ●
+OTA Firmware upgrade ●
+Remarks: 1. *: In progress
+2. ●: Supports
+3. Extended operating temperature: If the module works in this temperature range, its RF performance might be worse but it can still work properly.
+WWW.AGENEWTECH.COM
+
+--- Page 6 ---
+H164YP_Smart Module Specification
+LTE Cat7 H164YP
+Electrical specification
+Operating Voltage 3.4~4.4 V, typical value3.8 V
+Consumption (typical) Undetermined
+Interface
+LCD ×2, 4-lane MIPI DSI FHD 2400×1080 + DPI HD
+Camera ×3, 4-lane MIPI CSI, up to 32MP
+TP Capacitive touch screen
+×3 Analog inputs: 3 groups of analog microphone inputs
+Audio
+×3 Analog outputs: speaker, AB-class receiver and AB-class stereo earphone
+USB USB3.0(only support device mode), USB 2.0(support OTG)
+(U)SIM ×2 (1.8V/2.95V)
+UART ×2
+SD Card ×1
+ADC ×1
+I2C ×6
+SPI ×5
+PWRKEY Internal pull up to VBAT
+GPIO ×29
+Antenna Main antenna, Diversity antenna, GNSS antenna, WIFI/BT antenna
+WWW.AGENEWTECH.COM

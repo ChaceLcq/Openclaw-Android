@@ -1,0 +1,165 @@
+Source PDF: product-docs/pdf/Agenewtech_M318GO_Smart Module Specification_V1.1.pdf
+Model: M318GO
+Language: English
+Version: V1.1
+Extractor: pdfplumber
+Extracted at: 2026-05-07T09:49:11
+
+--- Page 1 ---
+AGENEWTECH
+M318GO
+Smart Module Specification_V1.1
+www.agenewtech.com
+
+--- Page 2 ---
+M318GO_Smart Module Specification
+Our aim is to provide customers with timely and comprehensive service. For any assistance, please
+contact our company headquarters:
+Wuxi Sunning Technology Co., Ltd. (Abbreviation: Agenew)
+No.52, Zone C, Huigu Pioneer Park, Huishan Economic Development Zone, Wuxi
+Postal Code: 214174
+PhoneNum: +86 0510 8235 0372 Mailbox: Asupport@agenewtech.com
+Introduction
+AGENEW OFFERS THE DOCUMENT AS A SERVICE TO ITS CUSTOMERS. CUSTOMERS MUST DESIGN THEIR PRODUCTS
+ACCORDING TO THE SPECIFICATIONS AND PARAMETERS PROVIDED IN THE DOCUMENTS. AGENEW SHALL NOT BE LIABLE
+FOR ANY DAMAGE CAUSED BY FAILURE TO COMPLY WITH RELEVANT OPERATION OR DESIGN SPECIFICATIONS. AGENEW
+HAS THE RIGHT TO UPDATE THE DOCUMENT BEFORE IT IS ANNOUNCED.
+Disclaimers
+AGENEW MAKES EFFORT TO ENSURE THE INTEGRITY, ACCURACY, TIMELINESS OR UTILITY OF THE FUNCTIONS UNDER
+DEVELOPMENT, BUT DOES NOT EXCLUDE THE POSSIBILITY OF ERRORS OR OMISSIONS OF THE ABOVE FUNCTIONS. UNLESS
+OTHERWISE SPECIFIED VALID AGREEMENTS, AGENEW MAKES NO IMPLIED OR EXPRESS GUARANTEE FOR THE USE OF
+FUNCTIONS UNDER DEVELOPMENT. TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAWS, AGENEW SHALL NOT BE
+LIABLE FOR ANY LOSS OR DAMAGE SUFFERED DUE TO THE USE OF THE FUNCTIONS UNDER DEVELOPMENT, WHETHER SUCH
+LOSS OR DAMAGE IS FORESEEABLE OR NOT.
+Copyright
+THE INFORMATION CONTAINED HERE IS PROPRIETARY TECHNICAL INFORMATION OF WUXI SUNNING TECHNOLOGY
+CO.,LTD. ANY COPIES AND REPRINTS THIS DOCUMENT WITHOUT THE PERMISSION OF AGENEW WILL BEAR LEGAL
+RESPONSIBILITY.
+Copyright © Wuxi Sunning Technology Co., Ltd. 2026. All rights reserved.
+WWW.AGENEWTECH.COM
+
+--- Page 3 ---
+M318GO_Smart Module Specification
+About the Document
+History
+Version Date Author Description
+- 2024-07-30 Daniel Wu Initial
+1.0 2024-07-31 Daniel Wu Controlled
+1.1 2026-03-23 Chen Yun Change company name
+WWW.AGENEWTECH.COM
+
+--- Page 4 ---
+M318GO_Smart Module Specification
+M318GO
+Multi-network Smart 5G module
+Supports Wi-Fi & BT
+M318GO is a multi-network smart 5G module based on MediaTek’s Octa-core MT8791 6nm processor (2×ARM Cortex-
+A78 + 6×ARM Cortex-A55) launched by Agenew, with inbuilt ARM Mali-G68 MC4 GPU, equipped with Android 13 operating
+system. Its powerful performance, neon engine processing, 2D/3D graphics acceleration processing capabilities, fully meet
+the needs of customers for high-speed and multimedia functions in industrial and consumer applications.
+M318GO supports full coverage of the entire network system, 5G NSA and SA modes, and is backward compatible with
+4G/4G/2G networks. It also supports Wi-Fi 802.11a/b/g/n/ac/ax and BT5.2 near-field wireless communication. In addition,
+M318GO also has audio and video input and output interfaces and rich GPIO interfaces. It supports a wide range of audio
+and video codecs. The main screen supports up to FHD+ 1080×2520 @120Hz. At the same time, M318GO supports GPS,
+GLONASS, BDS and Galileo positioning systems, and the positioning function is fast and accurate.
+M318GO is a SMT module, with a total of 636 pins, all of which are LGA pins, with a size of 42.5mm×56.5mm×2.85mm,
+which can be embedded in various M2M product applications through the pad, making it widely used in smart cash registers,
+smart POS, tax controllers, security monitoring, vehicle equipment, high-end information collection equipment, smart robots,
+smart homes, smart hardware, industrial smart handheld devices, drones, high-end police or law enforcement equipment,
+smart intercom equipment, Smart wearables, vending machines, logistics cabinets and other devices used in different
+industries.
+Main Advantages
+Comprehensive coverage of multi-network standard
+Support Wi-Fi 802.11a/b/g/n/ac/ax 2T2R & Bluetooth 5.2
+short-range wireless communication 2×ARM Cortex-A78 IEEE 802.11 Support Android 13
+a/b/g/n/ac/ax
++6×ARM Cortex-A55
+Support GPS/GLONASS/BDS/Galileo and other standard
+64-bit Processor (Octa-core)
+satellite positioning, support L1+L5 dual-band
+Support multiple audio and video codecs
+Main screen supports up to FHD+ 1080×2520@120Hz
+Support 4K@30fps video recording and playback
+GPS+GLONASS+BDS+Galileo Powerful Multimedia BT 5.2
+Abundant audio/video input and output interfaces and
+GPIO interfaces
+Built-in AI unit, support 2.6T computing power
+WWW.AGENEWTECH.COM
+
+--- Page 5 ---
+M318GO_Smart Module Specification
+5G NR M318GO
+Region/Operator China
+Operating System Android 13
+Memory 64GB UFS + 4GB LPDDR4X (default)
+Module Dimension (mm) 42.5 × 56.5 × 2.85
+LGA
+Packaging
+Temperature Range
+Operating temperature range: -20 °C ~ + 80 °C
+Operation Temperature
+Storage temperature range: -40 °C ~ + 90 °C
+Frequency Band Information
+NR N1/N3/N5/N7/N8/N20/N28/N38/N41(PC2)/N77/N78/N79
+LTE-FDD B1/B2/B3/B4/B5/B7/B8/B20/B28full/B66
+LTE-TDD B34/B38/B39/B40/B41(2496-2690)/B42/B43
+WCDMA B1/B2/B5/B8
+CDMA BC0/BC1
+GSM/EDGE B2/B3/B5/B8
+Wi-Fi 2.4/5GHz, 802.11 a/b/g/n/ac/ax，2×2 MIMO
+Bluetooth BT 5.2
+GNSS GPS + GLONASS + BDS + Galileo
+Certification
+Operator Certification Undetermined
+Compulsory Certification Undetermined
+Other Certifications Undetermined
+Data Rate
+NR-FDD 800Mbps (DL) /200Mbps (UL)
+NR-TDD 2.3 Gbps (DL) /625Mbps (UL)
+LTE-FDD (UL CA) 1.2Gbps (DL) /75Mbps (UL)
+LTE-TDD (DL CA) 600Mbps (DL) /45Mbps (UL)
+DC-HSPA+ 42Mbps (DL) /11.2Mbps (UL)
+WCDMA 384Kbps (DL) /384Kbps (UL)
+EDGE 236.8Kbps (DL) /236.8Kbps (UL)
+GPRS 85.6Kbps (DL) /85.6Kbps (UL)
+Features
+NR-FDD Bandwidth (MHz) 5/10/15/20/30/40
+NR-TDD Bandwidth (MHz) 10/15/20/40/50/60/80/90/100
+LTE Bandwidth (MHz) 1.4/3/5/10/15/20
+DL MIMO 4 × 4 Support ●
+(U)SIM Card Detection ●
+Dual-SIM & Dual-standby ●
+USB Firmware Update ●
+OTA Firmware Update ●
+Remark: 1. *: In progress
+2. ●: Supports
+WWW.AGENEWTECH.COM
+
+--- Page 6 ---
+M318GO_Smart Module Specification
+5G NR M318GO
+Electrical Specification
+Operating Voltage 3.4~4.5 V, typical 3.8 V
+Consumption (Typical) 200μA @ power off, 5.5mA @ sleep mode, typical
+Interface
+LCD 4-lane MIPI DSI, max support FHD+ 1080×2520@120fps
+Camera 4 × 4-lane MIPI CSI, 2 × ISP, support dual-camera 20MP + 20MP@30fps / 32MP@30fps
+TP Capacitive touch screen, compatible with I2C or SPI control
+Lineout Interface (External audio amplifier required) × 1, receiver × 1, headphone × 1, simulated MIC ×3
+Audio
++ DMIC × 2
+USB × 1, USB 2.0, USB3.1, support OTG
+(U)SIM × 2, support 1.8V/3.0V (U)SIM
+UART × 2, 1 supports hardware flow control, 1 as a debugging serial port
+SD Card × 1, support SD3.0, support 4-bit SDIO
+ADC × 4, universal ADC interface
+I2C × 8, for TP, Cameras, Sensors, etc.
+SPI × 1
+PWM × 2
+Motor Driven × 1
+I2S × 2
+Flashlight × 1
+PWRKEY Internal pull up to VBAT
+GPIO × 23
+Antenna Cellular Antenna × 4, Wi-Fi 2.4G & Bluetooth Antenna ×1, Wi-Fi MIMO Antenna × 1, GNSS Antenna × 1
+WWW.AGENEWTECH.COM
