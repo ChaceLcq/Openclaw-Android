@@ -49,6 +49,9 @@ class LocalVoiceCapture(
   private var recordingStarted = false
 
   @Volatile
+  private var recordingStarting = false
+
+  @Volatile
   private var stopShouldFinalize = true
 
   @Volatile
@@ -81,23 +84,17 @@ class LocalVoiceCapture(
     }
   }
 
-  fun isRunning(): Boolean = job?.isActive == true && recordingStarted
+  fun isRunning(): Boolean = job?.isActive == true && (recordingStarting || recordingStarted)
 
   fun start(): Boolean {
     job?.let { active ->
       if (active.isActive) {
-        if (recordingStarted) {
-          Log.d(TAG, "Local voice capture already running")
-          return false
-        }
-        Log.w(TAG, "Cancel stale local voice capture before recording start")
-        active.cancel()
-        runCatching { recorder?.stop() }
-        runCatching { recorder?.release() }
-        recorder = null
+        Log.d(TAG, "Local voice capture already active starting=$recordingStarting recording=$recordingStarted")
+        return false
       }
     }
     recordingStarted = false
+    recordingStarting = true
     if (
       ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) !=
       PackageManager.PERMISSION_GRANTED
@@ -114,6 +111,7 @@ class LocalVoiceCapture(
         }
         val ready = asrEngine.ensureReady()
         if (!ready) {
+          recordingStarting = false
           onUnavailable(asrEngine.reason() ?: "MNN ASR unavailable")
           return@launch
         }
@@ -122,6 +120,7 @@ class LocalVoiceCapture(
           try {
             createRecorder()
           } catch (err: Throwable) {
+            recordingStarting = false
             onUnavailable("AudioRecord failed: ${err.message ?: err::class.simpleName}")
             return@launch
         }
@@ -134,9 +133,28 @@ class LocalVoiceCapture(
         }
         inputManager.updateActiveDevice(preferredDevice)
         onStatus(inputManager.activeInputLabel.value)
-        onListening(true)
-        activeRecorder.startRecording()
+        val startResult =
+          runCatching {
+            if (activeRecorder.state != AudioRecord.STATE_INITIALIZED) {
+              error("AudioRecord became uninitialized before start")
+            }
+            activeRecorder.startRecording()
+          }
+        if (startResult.isFailure) {
+          val err = startResult.exceptionOrNull()
+          Log.w(TAG, "AudioRecord start failed: ${err?.message ?: err?.javaClass?.simpleName}")
+          recordingStarting = false
+          recordingStarted = false
+          onListening(false)
+          onInputLevel(0f)
+          runCatching { activeRecorder.release() }
+          if (recorder === activeRecorder) recorder = null
+          onUnavailable("AudioRecord start failed: ${err?.message ?: err?.javaClass?.simpleName ?: "unknown"}")
+          return@launch
+        }
         recordingStarted = true
+        recordingStarting = false
+        onListening(true)
         val routedDevice = activeRecorder.routedDevice
         val activeDevice = routedDevice ?: preferredDevice
         inputManager.updateActiveDevice(activeDevice)
@@ -146,7 +164,12 @@ class LocalVoiceCapture(
           "Local voice capture recording started preferred=${inputManager.deviceLabel(preferredDevice)} preferredSet=$preferredSet routed=${inputManager.deviceLabel(routedDevice)} active=${inputManager.activeInputLabel.value}",
         )
         asrEngine.resetVad()
-        readLoop(activeRecorder)
+        try {
+          readLoop(activeRecorder)
+        } finally {
+          recordingStarting = false
+          recordingStarted = false
+        }
       }
     return true
   }
@@ -158,6 +181,7 @@ class LocalVoiceCapture(
       job?.cancel()
       runCatching { recorder?.stop() }
     }
+    recordingStarting = false
     recordingStarted = false
     onListening(false)
     onInputLevel(0f)
