@@ -2,10 +2,17 @@ package ai.openclaw.app.node
 
 import ai.openclaw.app.gateway.GatewayEndpoint
 import ai.openclaw.app.gateway.GatewayTlsParams
+import kotlinx.coroutines.test.runTest
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34])
 class LocalGatewayLauncherTest {
   private val launcher = LocalGatewayLauncher(runner = FakeCommandRunner)
 
@@ -98,10 +105,43 @@ class LocalGatewayLauncherTest {
     assertTrue(LocalGatewayLauncher.BUNDLED_NATIVE_LIBS_FOR_TEST.first() == "libc++_shared.so")
   }
 
+  @Test
+  fun ensureStarted_reusesReachableAppOwnedGateway() =
+    runTest {
+      val runner = RecordingCommandRunner()
+      val launcher =
+        LocalGatewayLauncher(
+          runner = runner,
+          isOwnGatewayRunningProbe = { true },
+          canConnectProbe = { _, _ -> true },
+        )
+
+      val result =
+        launcher.ensureStarted(
+          endpoint = GatewayEndpoint.manual(host = "127.0.0.1", port = LocalGatewayLauncher.DEFAULT_LOCAL_GATEWAY_PORT),
+          tls = null,
+        )
+
+      assertEquals(LocalGatewayLaunchResult.AlreadyRunning, result)
+      assertTrue(runner.commands.isEmpty())
+    }
+
   private object FakeCommandRunner : CommandRunner {
     override suspend fun run(
       command: List<String>,
       timeoutMs: Long,
     ): CommandRunResult = CommandRunResult(exitCode = 0)
+  }
+
+  private class RecordingCommandRunner : CommandRunner {
+    val commands = mutableListOf<List<String>>()
+
+    override suspend fun run(
+      command: List<String>,
+      timeoutMs: Long,
+    ): CommandRunResult {
+      commands.add(command)
+      return CommandRunResult(exitCode = 0)
+    }
   }
 }

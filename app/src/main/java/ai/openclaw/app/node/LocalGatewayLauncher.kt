@@ -19,6 +19,8 @@ class LocalGatewayLauncher(
   context: Context? = null,
   private val runner: CommandRunner = ProcessCommandRunner(),
   private val nativeLibraryDir: String? = context?.applicationContext?.applicationInfo?.nativeLibraryDir,
+  private val isOwnGatewayRunningProbe: (suspend () -> Boolean)? = null,
+  private val canConnectProbe: (suspend (String, Int) -> Boolean)? = null,
 ) {
   private val appContext = context?.applicationContext
   private val appRoot = context?.applicationContext?.filesDir?.resolve("openclaw")
@@ -50,12 +52,12 @@ class LocalGatewayLauncher(
       return LocalGatewayLaunchResult.Skipped
     }
     if (isOwnGatewayRunning()) {
-      Log.i(LOG_TAG, "Stopping previous app-owned local gateway before restart")
-      stopLocked()
       if (canConnect(endpoint.host, endpoint.port)) {
-        Log.w(LOG_TAG, "Local gateway port is still reachable after stopping previous pid")
-        return LocalGatewayLaunchResult.PortInUse
+        Log.i(LOG_TAG, "Reusing reachable app-owned local gateway")
+        return LocalGatewayLaunchResult.AlreadyRunning
       }
+      Log.i(LOG_TAG, "Stopping stale app-owned local gateway before restart")
+      stopLocked()
     }
     if (canConnect(endpoint.host, endpoint.port)) {
       Log.w(LOG_TAG, "Local gateway port is reachable but not owned by this app")
@@ -122,6 +124,8 @@ class LocalGatewayLauncher(
     host: String,
     port: Int,
   ): Boolean =
+    canConnectProbe?.invoke(host, port)
+      ?:
     withContext(Dispatchers.IO) {
       runCatching {
         Socket().use { socket ->
@@ -131,6 +135,8 @@ class LocalGatewayLauncher(
     }
 
   private suspend fun isOwnGatewayRunning(): Boolean =
+    isOwnGatewayRunningProbe?.invoke()
+      ?:
     withContext(Dispatchers.IO) {
       val pid = pidFile?.takeIf { it.exists() }?.readText()?.trim()?.takeIf { it.isNotEmpty() } ?: return@withContext false
       runner.run(listOf("/system/bin/sh", "-c", "kill -0 '$pid' 2>/dev/null"), timeoutMs = 2_000).success

@@ -8,21 +8,23 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-class LocalMnnTtsEngine(
+internal class LocalMnnTtsEngine(
   private val context: Context,
-) {
+) : LocalTtsBackend {
+  override val provider: String = "mnn-bert-vits2"
+
   private val lock = Any()
   private var service: TtsService? = null
   private var initDeferred: CompletableDeferred<Boolean>? = null
   @Volatile private var unavailableReason: String? = null
 
-  suspend fun preload(): Boolean = ensureService() != null
+  override suspend fun preload(): Boolean = ensureService() != null
 
-  fun isReady(): Boolean = synchronized(lock) { service?.isLoaded == true }
+  override fun isReady(): Boolean = synchronized(lock) { service?.isLoaded == true }
 
-  internal suspend fun synthesize(
+  override suspend fun synthesize(
     text: String,
-    shouldContinue: () -> Boolean = { true },
+    shouldContinue: () -> Boolean,
   ): TalkSpeakAudio? =
     withContext(Dispatchers.IO) {
       val spoken = text.trim()
@@ -53,7 +55,7 @@ class LocalMnnTtsEngine(
       )
       TalkSpeakAudio(
         bytes = samples.toLittleEndianBytes(),
-        provider = "mnn-bert-vits2",
+        provider = provider,
         outputFormat = "pcm_${active.getCurrentSampleRate()}",
         voiceCompatible = true,
         mimeType = "audio/pcm",
@@ -61,9 +63,9 @@ class LocalMnnTtsEngine(
       )
     }
 
-  fun reason(): String? = unavailableReason
+  override fun reason(): String? = unavailableReason
 
-  fun release() {
+  override fun release() {
     synchronized(lock) {
       service?.destroy()
       service = null
@@ -139,14 +141,4 @@ class LocalMnnTtsEngine(
   private companion object {
     private const val TAG = "LocalMnnTtsEngine"
   }
-}
-
-private fun ShortArray.toLittleEndianBytes(): ByteArray {
-  val out = ByteArray(size * 2)
-  for (index in indices) {
-    val value = this[index].toInt()
-    out[index * 2] = (value and 0xFF).toByte()
-    out[index * 2 + 1] = ((value ushr 8) and 0xFF).toByte()
-  }
-  return out
 }

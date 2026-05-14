@@ -35,6 +35,7 @@ class LocalVoiceCapture(
   private val onPartial: (String) -> Unit,
   private val onFinal: (String) -> Unit,
   private val onUnavailable: (String) -> Unit,
+  private val externalGatePartialsEnabled: Boolean = false,
 ) {
   private var job: Job? = null
   private var recorder: AudioRecord? = null
@@ -364,8 +365,9 @@ class LocalVoiceCapture(
             isSpeechStarted &&
             currentOffset - speechDetectedStartOffset >= MIN_UTTERANCE_SAMPLES
           ) {
-            val finalText = recognizeFinalUtterance(segmentAudio())
-            if (isUsefulFinal(finalText)) onFinal(requireNotNull(finalText))
+            val audio = segmentAudio()
+            val finalText = recognizeFinalUtterance(audio)
+            if (isUsefulLocalAsrFinal(finalText, audio.size)) onFinal(requireNotNull(finalText))
           }
           break
         }
@@ -419,11 +421,17 @@ class LocalVoiceCapture(
                 "external gate speech end silenceMs=$silenceElapsed samples=${audio.size} start=$speechStartOffset current=$currentOffset",
               )
               resetSegmentState(clearBuffer = true, resetVad = true, reason = "external-gate-final")
-              if (isUsefulFinal(finalText)) onFinal(requireNotNull(finalText))
+              if (isUsefulLocalAsrFinal(finalText, audio.size)) onFinal(requireNotNull(finalText))
               continue
             }
 
-            if (gateOpen) {
+            if (
+              gateOpen &&
+              shouldSchedulePartialRecognition(
+                externalGateMode = true,
+                externalGatePartialsEnabled = externalGatePartialsEnabled,
+              )
+            ) {
               schedulePartialIfNeeded(
                 now = now,
                 speechSamples = currentOffset - speechDetectedStartOffset,
@@ -479,7 +487,7 @@ class LocalVoiceCapture(
                 "speech end silenceMs=$silenceElapsed samples=${audio.size} start=$speechStartOffset current=$currentOffset",
               )
               resetSegmentState(clearBuffer = true, resetVad = true, reason = "final")
-              if (isUsefulFinal(finalText)) onFinal(requireNotNull(finalText))
+              if (isUsefulLocalAsrFinal(finalText, audio.size)) onFinal(requireNotNull(finalText))
               continue
             }
 
@@ -541,12 +549,6 @@ class LocalVoiceCapture(
     return normalized !in fillerResults
   }
 
-  private fun isUsefulFinal(text: String?): Boolean {
-    val normalized = text?.trim().orEmpty()
-    if (normalized.isEmpty()) return false
-    return normalized !in fillerResults
-  }
-
   private fun enableAudioEffects(record: AudioRecord) {
     releaseAudioEffects()
     val sessionId = record.audioSessionId
@@ -595,15 +597,34 @@ class LocalVoiceCapture(
     private const val PARTIAL_INTERVAL_MS = 1_500L
     private const val MIN_PARTIAL_SAMPLES = SAMPLE_RATE * 8 / 10
     private const val PARTIAL_WINDOW_SAMPLES = SAMPLE_RATE * 2
-    private const val FINAL_SILENCE_MS = 200L
+    private const val FINAL_SILENCE_MS = 800L
     private const val DEFAULT_EXTERNAL_GATE_CLOSE_SILENCE_MS = 800L
     private const val MIN_UTTERANCE_SAMPLES = SAMPLE_RATE / 3
     private const val MAX_UTTERANCE_SAMPLES = SAMPLE_RATE * 60
     private const val MAX_AUDIO_BUFFER_SAMPLES = SAMPLE_RATE * 65
     private const val INACTIVITY_RESET_MS = 60_000L
     private const val MAX_PARTIAL_UPDATES = 2
-    private val fillerResults = setOf("\u55ef", "\u55ef\u55ef", "\u55ef\u55ef\u55ef", "\u554a", "N")
+    internal const val SHORT_FINAL_FALSE_POSITIVE_MAX_SAMPLES = SAMPLE_RATE * 4 / 5
+    internal val fillerResults = setOf("\u55ef", "\u55ef\u55ef", "\u55ef\u55ef\u55ef", "\u554a", "N")
+    internal val shortFinalFalsePositiveResults = setOf("\u6211")
   }
+}
+
+internal fun isUsefulLocalAsrFinal(
+  text: String?,
+  sampleCount: Int,
+): Boolean {
+  val normalized = text?.trim().orEmpty()
+  if (normalized.isEmpty()) return false
+  if (normalized.length < 2) return false
+  if (normalized in LocalVoiceCapture.fillerResults) return false
+  if (
+    sampleCount < LocalVoiceCapture.SHORT_FINAL_FALSE_POSITIVE_MAX_SAMPLES &&
+    normalized in LocalVoiceCapture.shortFinalFalsePositiveResults
+  ) {
+    return false
+  }
+  return true
 }
 
 private fun appendSlidingBuffer(
@@ -643,3 +664,8 @@ internal fun externalGateSpeechStartOffset(
   currentOffset: Long,
   lookbackSamples: Long,
 ): Long = max(bufferStartOffset, currentOffset - lookbackSamples)
+
+internal fun shouldSchedulePartialRecognition(
+  externalGateMode: Boolean,
+  externalGatePartialsEnabled: Boolean,
+): Boolean = !externalGateMode || externalGatePartialsEnabled

@@ -43,7 +43,7 @@ import java.util.UUID
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.coroutines.coroutineContext
 
-class TalkModeManager(
+class TalkModeManager internal constructor(
   private val context: Context,
   private val scope: CoroutineScope,
   private val session: GatewaySession,
@@ -53,19 +53,20 @@ class TalkModeManager(
   private val onAfterSpeak: suspend () -> Unit = {},
   private val localAsrEngine: LocalMnnAsrEngine? = null,
   private val inputManager: VoiceAudioInputManager? = null,
-  private val localTtsEngine: LocalMnnTtsEngine? = null,
+  private val localTtsEngine: LocalTtsBackend? = null,
   private val onMnnAvailabilityChanged: (Boolean) -> Unit = {},
 ) {
   companion object {
     private const val tag = "TalkMode"
     private const val listenWatchdogMs = 12_000L
-    private const val chatFinalWaitWithSubscribeMs = 45_000L
+    private const val chatFinalWaitWithSubscribeMs = 900_000L
     private const val chatFinalWaitWithoutSubscribeMs = 6_000L
+    private const val gatewayChatRunTimeoutMs = 900_000L
     private const val maxCachedRunCompletions = 128
     private const val useMnnTtsForInteractiveReplies = true
     private const val useGatewayTtsForInteractiveReplies = false
-    private const val mnnTtsWholeMaxChars = 24
-    private const val mnnTtsChunkMaxChars = 28
+    private const val mnnTtsWholeMaxChars = 36
+    private const val ttsInterruptStartupGraceMs = 700L
   }
 
   private val mainHandler = Handler(Looper.getMainLooper())
@@ -103,7 +104,7 @@ class TalkModeManager(
 
   // Interrupt-on-speech is disabled by default: starting a SpeechRecognizer during
   // TTS creates an audio session conflict on some OEMs. Can be enabled via gateway talk config.
-  private var interruptOnSpeech: Boolean = false
+  private var interruptOnSpeech: Boolean = true
   private var mainSessionKey: String = "main"
 
   @Volatile private var pendingRunId: String? = null
@@ -127,6 +128,7 @@ class TalkModeManager(
 
   @Volatile private var finalizeInFlight = false
   private var listenWatchdogJob: Job? = null
+  private var speechInterruptArmedAtMs: Long = 0L
 
   private var audioFocusRequest: AudioFocusRequest? = null
   private val localCapture: LocalVoiceCapture? by lazy {
@@ -140,6 +142,7 @@ class TalkModeManager(
       onStatus = { status -> _statusText.value = status },
       onListening = { listening -> _isListening.value = listening },
       onInputLevel = {},
+      onSpeechStart = { onLocalSpeechStart() },
       onPartial = { partial -> handleTranscript(partial, isFinal = false) },
       onFinal = { finalText ->
         val trimmed = finalText.trim()
@@ -638,7 +641,7 @@ class TalkModeManager(
         put("sessionKey", JsonPrimitive(mainSessionKey.ifBlank { "main" }))
         put("message", JsonPrimitive(message))
         put("thinking", JsonPrimitive("low"))
-        put("timeoutMs", JsonPrimitive(30_000))
+        put("timeoutMs", JsonPrimitive(gatewayChatRunTimeoutMs))
         put("idempotencyKey", JsonPrimitive(runId))
       }
     try {
@@ -937,59 +940,11 @@ class TalkModeManager(
   }
 
   private fun sanitizeForMnnTts(text: String): String =
-    text
-      .replace(Regex("(?i)\\bTTS\\b"), "语音播报")
-      .replace(Regex("(?i)\\bASR\\b"), "语音识别")
-      .replace(Regex("(?i)\\bAPI\\b"), "接口")
-      .replace(Regex("(?i)\\bElevenLabs\\b"), "语音服务")
-      .replace(Regex("(?i)\\bEdge\\b"), "微软语音")
-      .replace(Regex("[*_`#>\\[\\]{}()]+"), " ")
-      .filter { char ->
-        val type = Character.getType(char)
-        type != Character.SURROGATE.toInt() &&
-          type != Character.OTHER_SYMBOL.toInt() &&
-          type != Character.NON_SPACING_MARK.toInt()
-      }.replace(Regex("\\s+"), " ")
-      .trim()
+    MeloTtsTextPreprocessor.sanitize(text)
 
   private fun splitForMnnTts(text: String): List<String> {
-    val normalized = text.replace(Regex("\\s+"), " ").trim()
-    if (normalized.isEmpty()) return emptyList()
-    return splitNormalizedForMnnTts(normalized)
+    return MeloTtsTextPreprocessor.split(text)
   }
-  private fun splitNormalizedForMnnTts(normalized: String): List<String> {
-    val chunks = mutableListOf<String>()
-    val current = StringBuilder()
-
-    fun flush() {
-      val chunk = current.toString().trim()
-      if (chunk.isNotEmpty()) chunks.add(chunk)
-      current.clear()
-    }
-
-    for (char in normalized) {
-      current.append(char)
-      val shouldBreak =
-        isMnnTtsSentenceBreak(char) ||
-          current.length >= mnnTtsChunkMaxChars
-      if (shouldBreak) flush()
-    }
-    flush()
-    return chunks
-  }
-
-  private fun isMnnTtsSentenceBreak(char: Char): Boolean =
-    char == '\u3002' ||
-      char == '\uff01' ||
-      char == '\uff1f' ||
-      char == '!' ||
-      char == '?' ||
-      char == '\uff1b' ||
-      char == ';' ||
-      char == '\uff0c' ||
-      char == ',' ||
-      char == '\u3001' ||
-      char == '\n'
 
   private suspend fun runPlaybackSession(
     playbackToken: Long,
@@ -1016,6 +971,7 @@ class TalkModeManager(
       onBeforeSpeak()
       ensurePlaybackActive(playbackToken)
       _isSpeaking.value = true
+      speechInterruptArmedAtMs = SystemClock.elapsedRealtime() + ttsInterruptStartupGraceMs
       _statusText.value = "Speaking…"
       block()
     } finally {
@@ -1134,6 +1090,19 @@ class TalkModeManager(
   fun stopTts() {
     stopSpeaking(resetInterrupt = true)
     _isSpeaking.value = false
+    _statusText.value = "Listening"
+  }
+
+  internal fun onLocalSpeechStart() {
+    if (!_isEnabled.value && !_isSpeaking.value) return
+    if (!interruptOnSpeech || !_isSpeaking.value) return
+    if (SystemClock.elapsedRealtime() < speechInterruptArmedAtMs) {
+      Log.d(tag, "local ASR speech start ignored during TTS startup grace")
+      return
+    }
+    Log.d(tag, "local ASR speech start; interrupting TTS")
+    finalizeInFlight = false
+    stopSpeaking(resetInterrupt = false)
     _statusText.value = "Listening"
   }
 
@@ -1350,7 +1319,17 @@ class TalkModeManager(
   }
 
   private fun ensureInterruptListener() {
-    if (!interruptOnSpeech || !_isEnabled.value || !shouldAllowSpeechInterrupt()) return
+    if (!interruptOnSpeech || !_isEnabled.value) return
+    localCapture?.let { capture ->
+      if (!capture.isRunning()) {
+        usingLocalCapture = true
+        onMnnAvailabilityChanged(true)
+        _statusText.value = "Listening"
+        capture.start()
+      }
+      return
+    }
+    if (!shouldAllowSpeechInterrupt()) return
     // Don't create a new recognizer when we just destroyed one for TTS (finalizeInFlight=true).
     // Starting a new recognizer mid-TTS causes audio session conflict that kills AudioTrack
     // writes (returns 0) and MediaPlayer on OxygenOS/OnePlus devices.

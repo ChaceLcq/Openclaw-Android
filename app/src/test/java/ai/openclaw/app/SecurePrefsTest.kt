@@ -4,6 +4,9 @@ import android.content.Context
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import ai.openclaw.app.node.LocalModelProviderConfig
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -134,5 +137,63 @@ class SecurePrefsTest {
     assertEquals("qwen3.6-plus", settings.primaryModel)
     assertEquals(listOf("qwen3.6-plus", "custom-model"), settings.modelIds.take(2))
     assertFalse(plainPrefs.all.values.any { it.toString().contains("test-key") })
+  }
+
+  @Test
+  fun localModelProviderConfig_removesDisabledDlaProviderFromGatewayConfig() {
+    val existing =
+      Json
+        .parseToJsonElement(
+          """
+          {
+            "models": {
+              "mode": "merge",
+              "providers": {
+                "qwen3-dla": {
+                  "baseUrl": "http://127.0.0.1:8081/v1",
+                  "api": "openai-completions",
+                  "models": [{ "id": "qwen3-1.7b-dla" }]
+                },
+                "dashscope-coding": {
+                  "baseUrl": "https://old.example",
+                  "models": [{ "id": "old" }]
+                }
+              }
+            },
+            "agents": {
+              "defaults": {
+                "model": { "primary": "qwen3-dla/qwen3-1.7b-dla" },
+                "models": { "qwen3-dla/qwen3-1.7b-dla": {} }
+              },
+              "list": [
+                { "id": "main", "default": true, "model": "qwen3-dla/qwen3-1.7b-dla" }
+              ]
+            }
+          }
+          """.trimIndent(),
+        ).jsonObject
+
+    val next =
+      LocalModelProviderConfig.applyProviderConfig(
+        existing = existing,
+        settings =
+          LocalModelProviderSettings(
+            providerId = SecurePrefs.defaultLocalModelProviderId,
+            baseUrl = "https://coding.dashscope.aliyuncs.com/apps/anthropic",
+            apiKey = "cloud-key",
+            primaryModel = "qwen3.6-plus",
+            modelIds = listOf("qwen3.6-plus"),
+          ),
+      )
+
+    val providers = next["models"]!!.jsonObject["providers"]!!.jsonObject
+    val defaults = next["agents"]!!.jsonObject["defaults"]!!.jsonObject
+    val defaultModels = defaults["models"]!!.jsonObject
+    val firstAgent = (next["agents"]!!.jsonObject["list"] as kotlinx.serialization.json.JsonArray)[0].jsonObject
+
+    assertFalse(providers.containsKey("qwen3-dla"))
+    assertFalse(defaultModels.containsKey("qwen3-dla/qwen3-1.7b-dla"))
+    assertEquals("dashscope-coding/qwen3.6-plus", defaults["model"]!!.jsonObject["primary"].toString().trim('"'))
+    assertEquals("dashscope-coding/qwen3.6-plus", firstAgent["model"].toString().trim('"'))
   }
 }

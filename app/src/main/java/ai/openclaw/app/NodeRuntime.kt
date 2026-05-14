@@ -47,7 +47,7 @@ import ai.openclaw.app.node.parseHexColorArgb
 import ai.openclaw.app.protocol.OpenClawCanvasA2UIAction
 import ai.openclaw.app.voice.LocalMnnAsrEngine
 import ai.openclaw.app.voice.LocalMnnAsrStatus
-import ai.openclaw.app.voice.LocalMnnTtsEngine
+import ai.openclaw.app.voice.LocalTtsBackendFactory
 import ai.openclaw.app.voice.MicCaptureManager
 import ai.openclaw.app.voice.TalkModeManager
 import ai.openclaw.app.voice.VoiceAudioInputManager
@@ -86,7 +86,8 @@ import java.util.UUID
 import java.util.concurrent.atomic.AtomicLong
 
 private const val VOICE_TTS_PRELOAD_WAIT_MS = 20_000L
-private const val VOICE_PAGE_TTS_ENABLED = false
+private const val RK_VOICE_CHAT_RUN_TIMEOUT_MS = 900_000L
+internal const val VOICE_PAGE_TTS_ENABLED = true
 private const val VOICE_PAGE_WARM_TTS_RUNTIME_FOR_ASR = true
 
 class NodeRuntime(
@@ -117,7 +118,7 @@ class NodeRuntime(
       persistSelection = { prefs.setVoiceInputSelection(it) },
     )
   private val localMnnAsr = LocalMnnAsrEngine(appContext)
-  private val localMnnTts = LocalMnnTtsEngine(appContext)
+  private val localTtsBackend = LocalTtsBackendFactory.create(appContext)
   private val mouthCamera = UsbMouthCameraManager(appContext)
   private var mouthAsrStartJob: Job? = null
   private var voiceMnnTtsWarmJob: Job? = null
@@ -434,7 +435,7 @@ class NodeRuntime(
         isConnected = { operatorConnected },
         onBeforeSpeak = {},
         onAfterSpeak = {},
-        localTtsEngine = localMnnTts,
+        localTtsEngine = localTtsBackend,
         onMnnAvailabilityChanged = { prefs.setVoiceMnnAvailable(it) },
       ).also { speaker ->
         speaker.setPlaybackEnabled(VOICE_PAGE_TTS_ENABLED && prefs.speakerEnabled.value)
@@ -457,7 +458,7 @@ class NodeRuntime(
             put("sessionKey", JsonPrimitive(resolveMainSessionKey()))
             put("message", JsonPrimitive(message))
             put("thinking", JsonPrimitive(chatThinkingLevel.value))
-            put("timeoutMs", JsonPrimitive(30_000))
+            put("timeoutMs", JsonPrimitive(RK_VOICE_CHAT_RUN_TIMEOUT_MS))
             put("idempotencyKey", JsonPrimitive(idempotencyKey))
           }
         val response = operatorSession.request("chat.send", params.toString())
@@ -465,6 +466,14 @@ class NodeRuntime(
       },
       fetchAssistantReplyForMessage = { message ->
         fetchVoiceAssistantReplyForMessage(message)
+      },
+      abortPendingReply = { runId ->
+        val params =
+          buildJsonObject {
+            put("sessionKey", JsonPrimitive(resolveMainSessionKey()))
+            put("runId", JsonPrimitive(runId))
+          }
+        operatorSession.request("chat.abort", params.toString())
       },
       speakAssistantReply = { text ->
         // Voice-tab replies should speak through the dedicated reply speaker.
@@ -543,7 +552,7 @@ class NodeRuntime(
       onAfterSpeak = { micCapture.resumeAfterTts() },
       localAsrEngine = localMnnAsr,
       inputManager = voiceAudioInputManager,
-      localTtsEngine = localMnnTts,
+      localTtsEngine = localTtsBackend,
       onMnnAvailabilityChanged = { prefs.setVoiceMnnAvailable(it) },
     )
   }
@@ -1045,7 +1054,7 @@ class NodeRuntime(
         val started = SystemClock.elapsedRealtime()
         Log.d("OpenClawVoice", "MNN TTS preload start")
         val ready =
-          runCatching { localMnnTts.preload() }
+          runCatching { localTtsBackend.preload() }
             .onFailure { err ->
               Log.w("OpenClawVoice", "MNN TTS preload failed: ${err.message ?: err::class.simpleName}")
             }.getOrDefault(false)

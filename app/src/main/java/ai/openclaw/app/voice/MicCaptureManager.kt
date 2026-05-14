@@ -49,6 +49,7 @@ class MicCaptureManager(
    */
   private val sendToGateway: suspend (message: String, onRunIdKnown: (String) -> Unit) -> String?,
   private val fetchAssistantReplyForMessage: suspend (String) -> String? = { null },
+  private val abortPendingReply: suspend (String) -> Unit = {},
   private val speakAssistantReply: suspend (String) -> Unit = {},
   private val stopAssistantSpeech: () -> Unit = {},
   private val isAssistantTtsReady: () -> Boolean = { true },
@@ -64,13 +65,10 @@ class MicCaptureManager(
     private const val speechPossibleSilenceMs = 900L
     private const val transcriptIdleFlushMs = 1_600L
     private const val maxConversationEntries = 40
-    private const val pendingRunTimeoutMs = 45_000L
+    private const val pendingRunTimeoutMs = 900_000L
     private const val sendTurnTimeoutMs = 35_000L
     private const val assistantReplyPlaybackTimeoutMs = 180_000L
     private const val mouthCloseSilenceMs = 800L
-    private const val streamingTtsMinChunkChars = 16
-    private const val streamingTtsLeadChunkChars = 16
-    private const val streamingTtsMaxChunkChars = 28
   }
 
   private val mainHandler = Handler(Looper.getMainLooper())
@@ -119,6 +117,7 @@ class MicCaptureManager(
   private var drainJob: Job? = null
   private var transcriptFlushJob: Job? = null
   private var pendingRunTimeoutJob: Job? = null
+  private var abortingRunId: String? = null
   private var stopRequested = false
   private val ttsPauseLock = Any()
   private var ttsPauseDepth = 0
@@ -146,23 +145,31 @@ class MicCaptureManager(
       onSpeechStart = {
         if (mouthAsrActive) {
           interruptAssistantSpeechIfNeeded("mouth-asr-start")
+          abortPendingReplyForUserSpeech("mouth-asr-start")
           _liveTranscript.value = "Listening..."
           _statusText.value = "Listening"
         } else {
           interruptAssistantSpeechIfNeeded("speech-start")
+          abortPendingReplyForUserSpeech("speech-start")
         }
       },
       onPartial = { partial ->
         val trimmed = partial.trim()
         if (trimmed.isNotEmpty()) {
-          if (!mouthAsrActive) interruptAssistantSpeechIfNeeded("partial")
+          if (!mouthAsrActive) {
+            interruptAssistantSpeechIfNeeded("partial")
+            abortPendingReplyForUserSpeech("partial")
+          }
           _liveTranscript.value = trimmed
         }
       },
       onFinal = { finalText ->
         val trimmed = finalText.trim()
         if (trimmed.isNotEmpty()) {
-          if (!mouthAsrActive) interruptAssistantSpeechIfNeeded("final")
+          if (!mouthAsrActive) {
+            interruptAssistantSpeechIfNeeded("final")
+            abortPendingReplyForUserSpeech("final")
+          }
           queueRecognizedMessage(trimmed)
           sendQueuedIfIdle()
         }
@@ -297,7 +304,10 @@ class MicCaptureManager(
 
   fun setMouthSpeechGate(open: Boolean) {
     if (!mouthAsrActive) return
-    if (isReplyPauseActive() || _isSending.value) {
+    val waitingForAssistantReply = pendingRunId != null || isReplyPauseActive() || _isSending.value
+    val canInterruptActiveSpeech =
+      pendingRunId == null && !isReplyPauseActive() && (hasStreamingAssistantTtsWork() || isAssistantSpeaking())
+    if (waitingForAssistantReply && !canInterruptActiveSpeech) {
       localCapture?.setExternalSpeechGate(false)
       if (lastLoggedMouthGateOpen != open) {
         Log.d(tag, "mouth speech gate ignored open=$open while waiting for reply")
@@ -306,7 +316,10 @@ class MicCaptureManager(
       _statusText.value = "Waiting for reply"
       return
     }
-    if (open) interruptAssistantSpeechIfNeeded("mouth-gate-open")
+    if (open) {
+      interruptAssistantSpeechIfNeeded("mouth-gate-open")
+      abortPendingReplyForUserSpeech("mouth-gate-open")
+    }
     localCapture?.setExternalSpeechGate(open)
     if (open) ensureLocalMouthCaptureRunning("mouth-gate-open")
     if (lastLoggedMouthGateOpen != open) {
@@ -461,6 +474,7 @@ class MicCaptureManager(
     pendingRunId = null
     pendingAssistantEntryId = null
     emptyFinalLookupRunId = null
+    abortingRunId = null
     _isSending.value = false
     if (hasQueuedMessages()) {
       _statusText.value = queuedWaitingStatus()
@@ -498,7 +512,7 @@ class MicCaptureManager(
         if (!deltaText.isNullOrBlank()) {
           val assistantText = deltaText.trim()
           upsertPendingAssistant(text = assistantText, isStreaming = true)
-          queueStreamingAssistantTts(assistantText, force = false, reason = "delta")
+          queueStreamingAssistantTts(text = assistantText, force = false, reason = "delta")
         }
       }
       "final" -> {
@@ -531,8 +545,14 @@ class MicCaptureManager(
         finishPendingTurnAfterReply(null)
       }
       "aborted" -> {
-        upsertPendingAssistant(text = "Response aborted", isStreaming = false)
-        finishPendingTurnAfterReply(null)
+        val existingText = pendingAssistantText()?.trim().orEmpty()
+        if (existingText.isNotEmpty() && pendingAssistantEntryId != null) {
+          updateConversationEntry(pendingAssistantEntryId!!, text = existingText, isStreaming = false)
+          finishPendingTurnAfterReply(existingText)
+        } else {
+          upsertPendingAssistant(text = "Response aborted", isStreaming = false)
+          finishPendingTurnAfterReply(null)
+        }
       }
     }
   }
@@ -734,6 +754,7 @@ class MicCaptureManager(
           pendingAssistantEntryId = null
           pendingRunId = null
           emptyFinalLookupRunId = null
+          abortingRunId = null
           resumeAfterPendingReply()
           sendQueuedIfIdle()
         } else {
@@ -749,6 +770,7 @@ class MicCaptureManager(
         pendingRunId = null
         pendingAssistantEntryId = null
         emptyFinalLookupRunId = null
+        abortingRunId = null
         resumeAfterPendingReply()
         _statusText.value =
           if (!gatewayConnected) {
@@ -771,6 +793,7 @@ class MicCaptureManager(
         pendingRunId = null
         pendingAssistantEntryId = null
         emptyFinalLookupRunId = null
+        abortingRunId = null
         _isSending.value = false
         resetStreamingAssistantTts(cancelActive = true)
         _statusText.value =
@@ -876,6 +899,27 @@ class MicCaptureManager(
       .onFailure { err -> Log.w(tag, "stop assistant speech failed: ${err.message ?: err::class.simpleName}") }
   }
 
+  private fun abortPendingReplyForUserSpeech(reason: String) {
+    val runId = pendingRunId ?: return
+    if (abortingRunId == runId) return
+    abortingRunId = runId
+    Log.d(tag, "abort pending reply reason=$reason runId=$runId")
+    _statusText.value = "Listening - interrupting reply"
+    scope.launch {
+      try {
+        abortPendingReply(runId)
+      } catch (err: Throwable) {
+        Log.w(tag, "abort pending reply failed: ${err.message ?: err::class.simpleName}")
+      } finally {
+        if (pendingRunId == runId) {
+          completePendingTurn(sendNext = true)
+          resumeAfterPendingReply()
+        }
+        if (abortingRunId == runId) abortingRunId = null
+      }
+    }
+  }
+
   private fun queueStreamingAssistantTts(
     text: String,
     force: Boolean,
@@ -947,24 +991,8 @@ class MicCaptureManager(
     force: Boolean,
   ): Int? {
     if (start >= text.length) return null
-    for (index in start until text.length) {
-      val chars = index + 1 - start
-      if (start == 0 && chars >= streamingTtsLeadChunkChars) return index + 1
-      if (chars >= streamingTtsMinChunkChars && isStreamingTtsBreak(text[index])) return index + 1
-      if (!force && chars >= streamingTtsMaxChunkChars) return index + 1
-    }
-    return if (force && text.length > start) text.length else null
+    return MeloTtsTextPreprocessor.nextStreamingBoundary(text, start, force)
   }
-
-  private fun isStreamingTtsBreak(char: Char): Boolean =
-    char == '\u3002' ||
-      char == '\uff01' ||
-      char == '\uff1f' ||
-      char == '!' ||
-      char == '?' ||
-      char == '\uff1b' ||
-      char == ';' ||
-      char == '\n'
 
   private fun ensureStreamingTtsWorkerLocked() {
     if (streamingTtsWorker?.isActive == true) return
@@ -1028,6 +1056,11 @@ class MicCaptureManager(
       streamingTtsQueue.isNotEmpty() || streamingTtsWorker?.isActive == true
     }
 
+  private fun hasStreamingAssistantTtsProgress(): Boolean =
+    synchronized(streamingTtsLock) {
+      streamingTtsConsumedChars > 0 || streamingTtsQueue.isNotEmpty() || streamingTtsWorker?.isActive == true
+    }
+
   private fun resetStreamingAssistantTts(cancelActive: Boolean) {
     val active =
       synchronized(streamingTtsLock) {
@@ -1089,6 +1122,7 @@ class MicCaptureManager(
 
       override fun onBeginningOfSpeech() {
         interruptAssistantSpeechIfNeeded("system-speech-start")
+        abortPendingReplyForUserSpeech("system-speech-start")
       }
 
       override fun onRmsChanged(rmsdB: Float) {
@@ -1153,6 +1187,7 @@ class MicCaptureManager(
         if (!text.isNullOrBlank()) {
           val trimmed = text.trim()
           interruptAssistantSpeechIfNeeded("system-final")
+          abortPendingReplyForUserSpeech("system-final")
           if (trimmed != flushedPartialTranscript) {
             queueRecognizedMessage(trimmed)
             sendQueuedIfIdle()
@@ -1169,6 +1204,7 @@ class MicCaptureManager(
         if (!text.isNullOrBlank()) {
           val trimmed = text.trim()
           interruptAssistantSpeechIfNeeded("system-partial")
+          abortPendingReplyForUserSpeech("system-partial")
           _liveTranscript.value = trimmed
           scheduleTranscriptFlush(trimmed)
         }
@@ -1184,17 +1220,32 @@ class MicCaptureManager(
     val targetAssistantEntryId = pendingAssistantEntryId
     val targetMessageId = targetAssistantEntryId?.hashCode() ?: 0
     scope.launch {
-      completePendingTurn(sendNext = false)
       try {
         val spoken = finalText?.trim().orEmpty()
         val ttsReady = isAssistantTtsReady()
-        val hasStreamingTtsWork = hasStreamingAssistantTtsWork()
+        val hasStreamingTtsProgress = hasStreamingAssistantTtsProgress()
         Log.d(tag, "start final reply TTS handling: response='${spoken.take(80)}', messageId=$targetMessageId")
         Log.d(tag, "TTS controller status: $ttsReady")
-        if (spoken.isNotEmpty() && !isAssistantErrorText(spoken) && (ttsReady || hasStreamingTtsWork)) {
-          val finalChunks = if (ttsReady) queueStreamingAssistantTts(spoken, force = true, reason = "final") else 0
-          Log.d(tag, "final reply queued TTS messageId=$targetMessageId chars=${spoken.length} finalChunks=$finalChunks")
+        if (spoken.isNotEmpty() && !isAssistantErrorText(spoken) && (ttsReady || hasStreamingTtsProgress)) {
+          if (hasStreamingTtsProgress) {
+            queueStreamingAssistantTts(text = spoken, force = true, reason = "final")
+            completePendingTurn(sendNext = false)
+            resumeAfterPendingReply()
+            Log.d(tag, "final reply waiting for streaming TTS messageId=$targetMessageId chars=${spoken.length}")
+            waitForStreamingAssistantTts(assistantReplyPlaybackTimeoutMs)
+          } else if (ttsReady) {
+            completePendingTurn(sendNext = false)
+            resumeAfterPendingReply()
+            resetStreamingAssistantTts(cancelActive = true)
+            Log.d(tag, "final reply speak whole messageId=$targetMessageId chars=${spoken.length}")
+            speakAssistantReply(spoken)
+          } else {
+            completePendingTurn(sendNext = false)
+            resumeAfterPendingReply()
+          }
         } else {
+          completePendingTurn(sendNext = false)
+          resumeAfterPendingReply()
           Log.w(
             tag,
             "TTS condition not met: response=${spoken.isNotEmpty()}, responseEmpty=${spoken.isEmpty()}, ttsReady=$ttsReady, messageId=$targetMessageId",

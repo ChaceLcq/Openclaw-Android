@@ -14,6 +14,7 @@ import java.security.SecureRandom
 object LocalModelProviderConfig {
   private val json = Json { prettyPrint = true }
   private val secureRandom = SecureRandom()
+  private val disabledProviderIds = setOf("qwen3-dla")
 
   data class SyncResult(
     val gatewayToken: String,
@@ -63,34 +64,36 @@ object LocalModelProviderConfig {
     val models = sanitizeModels(settings.modelIds, settings.primaryModel)
     require(models.isNotEmpty()) { "At least one model is required." }
     val primary = settings.primaryModel.trim().takeIf { models.contains(it) } ?: models.first()
+    val existingModels = existing["models"].asObjectOrEmpty()
+    val existingAgents = existing["agents"].asObjectOrEmpty()
     return mergeJsonObjects(
       existing,
       mapOf(
         "models" to
           mergeJsonObjects(
-            existing["models"].asObjectOrEmpty(),
+            existingModels,
             mapOf(
               "mode" to JsonPrimitive("merge"),
               "providers" to
                 mergeJsonObjects(
-                  existing["models"].asObjectOrEmpty()["providers"].asObjectOrEmpty(),
+                  removeDisabledProviders(existingModels["providers"].asObjectOrEmpty()),
                   mapOf(providerId to providerJson(settings, models)),
                 ),
             ),
           ),
         "agents" to
           mergeJsonObjects(
-            existing["agents"].asObjectOrEmpty(),
+            existingAgents,
             mapOf(
               "defaults" to
                 mergeJsonObjects(
-                  existing["agents"].asObjectOrEmpty()["defaults"].asObjectOrEmpty(),
+                  removeDisabledDefaultModels(existingAgents["defaults"].asObjectOrEmpty()),
                   mapOf(
                     "model" to JsonObject(mapOf("primary" to JsonPrimitive("$providerId/$primary"))),
                     "models" to JsonObject(mapOf("$providerId/$primary" to JsonObject(emptyMap()))),
                   ),
                 ),
-              "list" to updateAgentsList(existing["agents"].asObjectOrEmpty()["list"], providerId, primary),
+              "list" to updateAgentsList(existingAgents["list"], providerId, primary),
             ),
           ),
         "gateway" to gatewayJson(existing["gateway"].asObjectOrEmpty(), gatewayPort = gatewayPort),
@@ -154,6 +157,20 @@ object LocalModelProviderConfig {
       put("contextWindow", JsonPrimitive(262144))
       put("maxTokens", JsonPrimitive(65536))
     }
+
+  private fun removeDisabledProviders(providers: JsonObject): JsonObject =
+    JsonObject(providers.filterKeys { providerId -> providerId !in disabledProviderIds })
+
+  private fun removeDisabledDefaultModels(defaults: JsonObject): JsonObject {
+    val existingModels = defaults["models"].asObjectOrEmpty()
+    val cleanedModels =
+      JsonObject(
+        existingModels.filterKeys { modelKey ->
+          disabledProviderIds.none { disabled -> modelKey == disabled || modelKey.startsWith("$disabled/") }
+        },
+      )
+    return mergeJsonObjects(defaults, mapOf("models" to cleanedModels))
+  }
 
   private fun updateAgentsList(
     current: JsonElement?,
