@@ -12,9 +12,15 @@ import java.io.File
 import java.security.SecureRandom
 
 object LocalModelProviderConfig {
+  const val DLA_PROVIDER_ID: String = "qwen3-dla"
+  const val DLA_MODEL_ID: String = "qwen3-1.7b-dla"
+  const val DLA_BASE_URL: String = "http://127.0.0.1:8081/v1"
+  const val DLA_API_KEY: String = "openclaw-local-dla"
+  private const val DLA_CONTEXT_WINDOW: Int = 32_768
+  private const val DLA_MAX_TOKENS: Int = 256
+
   private val json = Json { prettyPrint = true }
   private val secureRandom = SecureRandom()
-  private val disabledProviderIds = setOf("qwen3-dla")
 
   data class SyncResult(
     val gatewayToken: String,
@@ -52,8 +58,32 @@ object LocalModelProviderConfig {
         gatewayPort = gatewayPort,
       )
     configFile.writeText(json.encodeToString(JsonElement.serializer(), next))
+    if (isDlaProvider(settings)) {
+      writeDlaSettings(configDir)
+    }
     return SyncResult(gatewayToken(next))
   }
+
+  fun dlaProviderSettings(): LocalModelProviderSettings =
+    LocalModelProviderSettings(
+      providerId = DLA_PROVIDER_ID,
+      baseUrl = DLA_BASE_URL,
+      apiKey = DLA_API_KEY,
+      primaryModel = DLA_MODEL_ID,
+      modelIds = listOf(DLA_MODEL_ID),
+    )
+
+  fun shouldUseDlaDefaults(settings: LocalModelProviderSettings): Boolean =
+    settings.baseUrl.isBlank() &&
+      settings.apiKey.isBlank() &&
+      settings.primaryModel.isBlank() &&
+      settings.modelIds.all { it.isBlank() }
+
+  fun isDlaProvider(settings: LocalModelProviderSettings): Boolean =
+    settings.providerId.trim() == DLA_PROVIDER_ID ||
+      settings.baseUrl.trim().removeSuffix("/") == DLA_BASE_URL.removeSuffix("/") ||
+      settings.primaryModel.trim() == DLA_MODEL_ID ||
+      settings.modelIds.any { it.trim() == DLA_MODEL_ID }
 
   internal fun applyProviderConfig(
     existing: JsonObject,
@@ -76,7 +106,7 @@ object LocalModelProviderConfig {
               "mode" to JsonPrimitive("merge"),
               "providers" to
                 mergeJsonObjects(
-                  removeDisabledProviders(existingModels["providers"].asObjectOrEmpty()),
+                  existingModels["providers"].asObjectOrEmpty(),
                   mapOf(providerId to providerJson(settings, models)),
                 ),
             ),
@@ -87,7 +117,7 @@ object LocalModelProviderConfig {
             mapOf(
               "defaults" to
                 mergeJsonObjects(
-                  removeDisabledDefaultModels(existingAgents["defaults"].asObjectOrEmpty()),
+                  existingAgents["defaults"].asObjectOrEmpty(),
                   mapOf(
                     "model" to JsonObject(mapOf("primary" to JsonPrimitive("$providerId/$primary"))),
                     "models" to JsonObject(mapOf("$providerId/$primary" to JsonObject(emptyMap()))),
@@ -154,23 +184,9 @@ object LocalModelProviderConfig {
           put("cacheWrite", JsonPrimitive(0))
         },
       )
-      put("contextWindow", JsonPrimitive(262144))
-      put("maxTokens", JsonPrimitive(65536))
+      put("contextWindow", JsonPrimitive(if (id == DLA_MODEL_ID) DLA_CONTEXT_WINDOW else 262144))
+      put("maxTokens", JsonPrimitive(if (id == DLA_MODEL_ID) DLA_MAX_TOKENS else 65536))
     }
-
-  private fun removeDisabledProviders(providers: JsonObject): JsonObject =
-    JsonObject(providers.filterKeys { providerId -> providerId !in disabledProviderIds })
-
-  private fun removeDisabledDefaultModels(defaults: JsonObject): JsonObject {
-    val existingModels = defaults["models"].asObjectOrEmpty()
-    val cleanedModels =
-      JsonObject(
-        existingModels.filterKeys { modelKey ->
-          disabledProviderIds.none { disabled -> modelKey == disabled || modelKey.startsWith("$disabled/") }
-        },
-      )
-    return mergeJsonObjects(defaults, mapOf("models" to cleanedModels))
-  }
 
   private fun updateAgentsList(
     current: JsonElement?,
@@ -219,12 +235,36 @@ object LocalModelProviderConfig {
     updates: Map<String, JsonElement>,
   ): JsonObject = JsonObject(base.toMutableMap().apply { putAll(updates) })
 
+  private fun writeDlaSettings(configDir: File) {
+    val settingsFile = configDir.resolve("settings.json")
+    val existing =
+      runCatching {
+        if (settingsFile.exists()) {
+          json.parseToJsonElement(settingsFile.readText()).asObject()
+        } else {
+          JsonObject(emptyMap())
+        }
+      }.getOrElse { JsonObject(emptyMap()) }
+    val existingCompaction = existing["compaction"].asObjectOrEmpty()
+    val next =
+      mergeJsonObjects(
+        existing,
+        mapOf(
+          "compaction" to
+            mergeJsonObjects(
+              existingCompaction,
+              mapOf("enabled" to JsonPrimitive(false)),
+            ),
+        ),
+      )
+    settingsFile.writeText(json.encodeToString(JsonElement.serializer(), next))
+  }
+
   private fun JsonElement?.asObjectOrEmpty(): JsonObject = this as? JsonObject ?: JsonObject(emptyMap())
 
   private fun JsonElement.asObject(): JsonObject = this as? JsonObject ?: JsonObject(emptyMap())
 
-  private fun JsonElement?.asStringOrNull(): String? =
-    (this as? JsonPrimitive)?.content?.trim()?.takeIf { it.isNotEmpty() }
+  private fun JsonElement?.asStringOrNull(): String? = (this as? JsonPrimitive)?.content?.trim()?.takeIf { it.isNotEmpty() }
 
   private fun gatewayToken(config: JsonObject): String =
     config["gateway"].asObjectOrEmpty()["auth"].asObjectOrEmpty()["token"].asStringOrNull()

@@ -13,7 +13,10 @@ import ai.openclaw.app.voice.VoiceConversationEntry
 import ai.openclaw.app.voice.VoiceInputDevice
 import ai.openclaw.app.voice.VoiceInputSelection
 import ai.openclaw.app.voice.VoiceInputSelectionMode
+import ai.openclaw.app.voice.VoiceModelInstallState
+import ai.openclaw.app.voice.VoiceTtsOutputMode
 import android.app.Application
+import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.viewModelScope
@@ -85,6 +88,8 @@ class MainViewModel(
   val isConnected: StateFlow<Boolean> = runtimeState(initial = false) { it.isConnected }
   val isNodeConnected: StateFlow<Boolean> = runtimeState(initial = false) { it.nodeConnected }
   val statusText: StateFlow<String> = runtimeState(initial = "Offline") { it.statusText }
+  val localDlaWarmupNotice: StateFlow<NodeRuntime.LocalDlaWarmupNotice?> =
+    runtimeState(initial = null) { it.localDlaWarmupNotice }
   val serverName: StateFlow<String?> = runtimeState(initial = null) { it.serverName }
   val remoteAddress: StateFlow<String?> = runtimeState(initial = null) { it.remoteAddress }
   val pendingGatewayTrust: StateFlow<NodeRuntime.GatewayTrustPrompt?> = runtimeState(initial = null) { it.pendingGatewayTrust }
@@ -113,6 +118,7 @@ class MainViewModel(
   val onboardingCompleted: StateFlow<Boolean> = prefs.onboardingCompleted
   val canvasDebugStatusEnabled: StateFlow<Boolean> = prefs.canvasDebugStatusEnabled
   val speakerEnabled: StateFlow<Boolean> = prefs.speakerEnabled
+  val voiceTtsOutputMode: StateFlow<VoiceTtsOutputMode> = prefs.voiceTtsOutputMode
   val voiceCaptureMode: StateFlow<VoiceCaptureMode> = runtimeState(initial = VoiceCaptureMode.Off) { it.voiceCaptureMode }
   val micEnabled: StateFlow<Boolean> = runtimeState(initial = false) { it.micEnabled }
 
@@ -137,6 +143,10 @@ class MainViewModel(
     runtimeState(initial = LocalMnnAsrStatus.Idle) { it.voiceMnnAsrStatus }
   val mouthAsrReadyText: StateFlow<String> =
     runtimeState(initial = "Voice inactive") { it.mouthAsrReadyText }
+  val voiceTtsReadyText: StateFlow<String> =
+    runtimeState(initial = "TTS idle") { it.voiceTtsReadyText }
+  val voiceModelInstallState: StateFlow<VoiceModelInstallState> =
+    runtimeState(initial = VoiceModelInstallState()) { it.voiceModelInstallState }
   val mouthCameraState: StateFlow<MouthCameraState> =
     runtimeState(initial = MouthCameraState()) { it.mouthCameraState }
 
@@ -299,6 +309,14 @@ class MainViewModel(
     ensureRuntime().setVoiceScreenActive(active)
   }
 
+  fun refreshVoiceModelInstallState() {
+    ensureRuntime().refreshVoiceModelInstallState()
+  }
+
+  fun installVoiceModelPackage(uri: Uri) {
+    ensureRuntime().installVoiceModelPackage(uri)
+  }
+
   fun setMouthAsrActive(active: Boolean) {
     ensureRuntime().setMouthAsrActive(active)
   }
@@ -350,6 +368,10 @@ class MainViewModel(
     ensureRuntime().setSpeakerEnabled(enabled)
   }
 
+  fun setVoiceTtsOutputMode(mode: VoiceTtsOutputMode) {
+    ensureRuntime().setVoiceTtsOutputMode(mode)
+  }
+
   fun refreshGatewayConnection() {
     ensureRuntime().refreshGatewayConnection()
   }
@@ -390,6 +412,10 @@ class MainViewModel(
     runtimeRef.value?.declineGatewayTrustPrompt()
   }
 
+  fun dismissLocalDlaWarmupNotice(id: Long) {
+    runtimeRef.value?.dismissLocalDlaWarmupNotice(id)
+  }
+
   fun handleCanvasA2UIActionFromWebView(payloadJson: String) {
     ensureRuntime().handleCanvasA2UIActionFromWebView(payloadJson)
   }
@@ -422,6 +448,10 @@ class MainViewModel(
 
   fun switchChatSession(sessionKey: String) {
     ensureRuntime().switchChatSession(sessionKey)
+  }
+
+  fun startFreshChatSession() {
+    ensureRuntime().startFreshChatSession()
   }
 
   fun abortChat() {

@@ -186,8 +186,10 @@ class MicCaptureManager(
         }
         onMnnAvailabilityChanged(false)
         usingLocalCapture = false
-        _statusText.value = "$reason; using system speech"
-        startSystemRecognizer()
+        _isListening.value = false
+        _inputLevel.value = 0f
+        _statusText.value = "$reason; local ASR unavailable"
+        _micEnabled.value = false
       },
     )
   }
@@ -578,7 +580,9 @@ class MicCaptureManager(
       _micEnabled.value = false
       return
     }
-    startSystemRecognizer()
+    onMnnAvailabilityChanged(false)
+    _statusText.value = "Local MNN ASR unavailable"
+    _micEnabled.value = false
   }
 
   private fun ensureLocalMouthCaptureRunning(reason: String) {
@@ -620,7 +624,7 @@ class MicCaptureManager(
     transcriptFlushJob?.cancel()
     transcriptFlushJob = null
     _isListening.value = false
-    _statusText.value = if (_isSending.value) "Mic off · sending…" else "Mic off"
+    _statusText.value = if (_isSending.value) "Mic off · sending..." else "Mic off"
     _inputLevel.value = 0f
     localCapture?.setExternalSpeechGate(false)
     localCapture?.stop()

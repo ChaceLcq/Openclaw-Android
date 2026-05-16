@@ -71,4 +71,15 @@ class ChatSheetContentTest {
       assertTrue(consumed)
       assertEquals("summarize mail", dispatchedPrompt)
     }
+
+  @Test
+  fun freshSessionButtonUsesNewChatSemantics() {
+    assertEquals("Start new chat", START_NEW_CHAT_CONTENT_DESCRIPTION)
+  }
+
+  @Test
+  fun thinkingIndicatorHidesOnceAssistantStreamStarts() {
+    assertTrue(showThinkingIndicator(pendingRunCount = 1, streamingAssistantText = null))
+    assertFalse(showThinkingIndicator(pendingRunCount = 1, streamingAssistantText = "正在回复"))
+  }
 }

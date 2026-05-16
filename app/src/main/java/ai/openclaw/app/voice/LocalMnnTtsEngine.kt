@@ -80,9 +80,11 @@ internal class LocalMnnTtsEngine(
     var owner: CompletableDeferred<Boolean>? = null
     synchronized(lock) {
       service?.takeIf { it.isLoaded }?.let { return it }
-      initDeferred?.let {
-        pending = it
-      } ?: run {
+      val existing = initDeferred
+      if (existing?.isActive == true) {
+        pending = existing
+      } else {
+        initDeferred = null
         owner = CompletableDeferred()
         initDeferred = owner
       }

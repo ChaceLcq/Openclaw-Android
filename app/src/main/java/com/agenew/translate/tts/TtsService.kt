@@ -93,6 +93,15 @@ class TtsService {
     context: Context,
     backendType: TtsBackendType,
   ): File? {
+    existingTtsModelDir(
+      appFilesDir = context.filesDir,
+      externalFilesDir = context.getExternalFilesDir(null),
+      candidates = backendType.assetFolderCandidates,
+    )?.let { modelDir ->
+      Log.d(TAG, "Using existing local TTS model dir: ${modelDir.absolutePath}")
+      return modelDir
+    }
+
     val targetRoot = File(context.filesDir, "tts_models")
     targetRoot.mkdirs()
     for (folderName in backendType.assetFolderCandidates) {
@@ -168,4 +177,26 @@ class TtsService {
     private const val TAG = "TtsService"
     private const val DEFAULT_SAMPLE_RATE = 44_100
   }
+}
+
+internal fun existingTtsModelDir(
+  appFilesDir: File,
+  externalFilesDir: File?,
+  candidates: List<String>,
+): File? {
+  val roots =
+    listOfNotNull(
+      File(appFilesDir, "tts_models"),
+      File(appFilesDir, "models/tts"),
+      externalFilesDir?.let { File(it, "models/tts") },
+      externalFilesDir?.let { File(it, "tts_models") },
+    )
+  for (root in roots) {
+    for (candidate in candidates) {
+      val dir = File(root, candidate)
+      val config = File(dir, "config.json")
+      if (config.exists() && config.length() > 0L) return dir
+    }
+  }
+  return null
 }

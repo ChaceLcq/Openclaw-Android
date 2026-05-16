@@ -177,6 +177,7 @@ class GatewayBootstrapAuthTest {
     val runtime =
       NodeRuntime(
         app,
+        prefs = testSecurePrefs(app),
         tlsFingerprintProbe = { _, _ ->
           GatewayTlsProbeResult(failure = GatewayTlsProbeFailure.TLS_UNAVAILABLE)
         },
@@ -221,6 +222,33 @@ class GatewayBootstrapAuthTest {
     assertNull(authStore.loadToken(deviceId, "operator"))
   }
 
+  @Test
+  fun dismissLocalDlaWarmupNotice_clearsOnlyCurrentNotice() {
+    val app = RuntimeEnvironment.getApplication()
+    val runtime = NodeRuntime(app, prefs = testSecurePrefs(app))
+
+    runtime.showLocalDlaWarmupNotice(title = "DLA ready", message = "Ready one")
+    val first = runtime.localDlaWarmupNotice.value!!
+    runtime.showLocalDlaWarmupNotice(title = "DLA ready", message = "Ready two")
+    val second = runtime.localDlaWarmupNotice.value!!
+
+    runtime.dismissLocalDlaWarmupNotice(first.id)
+    assertEquals(second, runtime.localDlaWarmupNotice.value)
+
+    runtime.dismissLocalDlaWarmupNotice(second.id)
+    assertNull(runtime.localDlaWarmupNotice.value)
+  }
+
+  private fun testSecurePrefs(app: android.content.Context): SecurePrefs =
+    SecurePrefs(
+      app,
+      securePrefsOverride =
+        app.getSharedPreferences(
+          "openclaw.node.secure.test.${UUID.randomUUID()}",
+          android.content.Context.MODE_PRIVATE,
+        ),
+    )
+
   private fun waitForGatewayTrustPrompt(runtime: NodeRuntime): NodeRuntime.GatewayTrustPrompt {
     repeat(50) {
       runtime.pendingGatewayTrust.value?.let { return it }
@@ -232,7 +260,11 @@ class GatewayBootstrapAuthTest {
   private fun waitForStatusText(runtime: NodeRuntime): String {
     repeat(50) {
       val status = runtime.statusText.value
-      if (status != "Verify gateway TLS fingerprint…") {
+      if (
+        status != "Verify gateway TLS fingerprint…" &&
+        status != "Starting local gateway…" &&
+        status != "Connecting…"
+      ) {
         return status
       }
       Thread.sleep(10)

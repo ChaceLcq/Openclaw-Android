@@ -32,4 +32,20 @@ class SessionFiltersTest {
     val result = resolveSessionChoices("custom", sessions, mainSessionKey = "main", nowMs = now).map { it.key }
     assertEquals(listOf("main", "custom"), result)
   }
+
+  @Test
+  fun sessionChoicesCapRecentSessionsToAvoidGrowingChipRow() {
+    val now = 1_700_000_000_000L
+    val sessions =
+      (1..12).map { index ->
+        ChatSessionEntry(key = "recent-$index", updatedAtMs = now - index * 60_000L)
+      }
+
+    val result = resolveSessionChoices("recent-12", sessions, mainSessionKey = "main", nowMs = now).map { it.key }
+
+    assertEquals(
+      listOf("recent-1", "recent-2", "recent-3", "recent-4", "recent-5", "recent-12"),
+      result,
+    )
+  }
 }

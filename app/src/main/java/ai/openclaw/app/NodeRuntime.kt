@@ -26,6 +26,10 @@ import ai.openclaw.app.node.DebugHandler
 import ai.openclaw.app.node.DeviceHandler
 import ai.openclaw.app.node.DeviceNotificationListenerService
 import ai.openclaw.app.node.InvokeDispatcher
+import ai.openclaw.app.node.LocalDlaBridgeLaunchResult
+import ai.openclaw.app.node.LocalDlaBridgeLauncher
+import ai.openclaw.app.node.LocalDlaBridgeStopResult
+import ai.openclaw.app.node.LocalDlaBridgeWarmupResult
 import ai.openclaw.app.node.LocalGatewayLaunchResult
 import ai.openclaw.app.node.LocalGatewayLauncher
 import ai.openclaw.app.node.LocalGatewayStopResult
@@ -55,9 +59,13 @@ import ai.openclaw.app.voice.VoiceConversationEntry
 import ai.openclaw.app.voice.VoiceInputDevice
 import ai.openclaw.app.voice.VoiceInputSelection
 import ai.openclaw.app.voice.VoiceInputSelectionMode
+import ai.openclaw.app.voice.VoiceModelInstallState
+import ai.openclaw.app.voice.VoiceModelInstaller
+import ai.openclaw.app.voice.VoiceTtsOutputMode
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.SystemClock
 import android.util.Log
 import androidx.core.content.ContextCompat
@@ -75,7 +83,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -85,21 +92,29 @@ import kotlinx.serialization.json.buildJsonObject
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicLong
 
-private const val VOICE_TTS_PRELOAD_WAIT_MS = 20_000L
 private const val RK_VOICE_CHAT_RUN_TIMEOUT_MS = 900_000L
 internal const val VOICE_PAGE_TTS_ENABLED = true
-private const val VOICE_PAGE_WARM_TTS_RUNTIME_FOR_ASR = true
+private const val VOICE_ASR_PRELOAD_SLOW_LOG_MS = 30_000L
+private const val VOICE_TTS_PRELOAD_SLOW_LOG_MS = 20_000L
+private const val VOICE_PAGE_WARM_TTS_RUNTIME_AFTER_ASR = true
 
 class NodeRuntime(
   context: Context,
   val prefs: SecurePrefs = SecurePrefs(context.applicationContext),
   private val tlsFingerprintProbe: suspend (String, Int) -> GatewayTlsProbeResult = ::probeGatewayTlsFingerprint,
   private val localGatewayLauncher: LocalGatewayLauncher = LocalGatewayLauncher(context.applicationContext),
+  private val localDlaBridgeLauncher: LocalDlaBridgeLauncher = LocalDlaBridgeLauncher(context.applicationContext),
 ) {
   data class GatewayConnectAuth(
     val token: String?,
     val bootstrapToken: String?,
     val password: String?,
+  )
+
+  data class LocalDlaWarmupNotice(
+    val id: Long,
+    val title: String,
+    val message: String,
   )
 
   private val appContext = context.applicationContext
@@ -119,9 +134,14 @@ class NodeRuntime(
     )
   private val localMnnAsr = LocalMnnAsrEngine(appContext)
   private val localTtsBackend = LocalTtsBackendFactory.create(appContext)
+  private val voiceModelInstaller = VoiceModelInstaller(appContext)
   private val mouthCamera = UsbMouthCameraManager(appContext)
   private var mouthAsrStartJob: Job? = null
   private var voiceMnnTtsWarmJob: Job? = null
+
+  @Volatile
+  private var localDlaWarmupStatusText: String? = null
+  private val localDlaWarmupGeneration = AtomicLong(0)
 
   @Volatile
   private var voiceMnnRuntimeWarmed = false
@@ -133,7 +153,18 @@ class NodeRuntime(
   private val _voiceCaptureMode = MutableStateFlow(VoiceCaptureMode.Off)
   val voiceCaptureMode: StateFlow<VoiceCaptureMode> = _voiceCaptureMode.asStateFlow()
   private val _mouthAsrReadyText = MutableStateFlow("Voice inactive")
+  private val _voiceTtsReadyText = MutableStateFlow("TTS idle")
+  private val _voiceModelInstallState = MutableStateFlow(VoiceModelInstallState())
+
+  private fun shouldPreloadVoiceMnnRuntime(): Boolean {
+    val settings = prefs.localModelProviderSettings()
+    return !LocalModelProviderConfig.shouldUseDlaDefaults(settings) &&
+      !LocalModelProviderConfig.isDlaProvider(settings)
+  }
+
   val mouthAsrReadyText: StateFlow<String> = _mouthAsrReadyText.asStateFlow()
+  val voiceTtsReadyText: StateFlow<String> = _voiceTtsReadyText.asStateFlow()
+  val voiceModelInstallState: StateFlow<VoiceModelInstallState> = _voiceModelInstallState.asStateFlow()
   val mouthCameraState: StateFlow<MouthCameraState> = mouthCamera.state
 
   private val discovery = GatewayDiscovery(appContext, scope = scope)
@@ -290,6 +321,10 @@ class NodeRuntime(
   private val _statusText = MutableStateFlow("Offline")
   val statusText: StateFlow<String> = _statusText.asStateFlow()
 
+  private val _localDlaWarmupNotice = MutableStateFlow<LocalDlaWarmupNotice?>(null)
+  val localDlaWarmupNotice: StateFlow<LocalDlaWarmupNotice?> = _localDlaWarmupNotice.asStateFlow()
+  private val localDlaWarmupNoticeId = AtomicLong(0)
+
   private val _pendingGatewayTrust = MutableStateFlow<GatewayTrustPrompt?>(null)
   val pendingGatewayTrust: StateFlow<GatewayTrustPrompt?> = _pendingGatewayTrust.asStateFlow()
 
@@ -437,6 +472,7 @@ class NodeRuntime(
         onAfterSpeak = {},
         localTtsEngine = localTtsBackend,
         onMnnAvailabilityChanged = { prefs.setVoiceMnnAvailable(it) },
+        ttsOutputModeProvider = { prefs.voiceTtsOutputMode.value },
       ).also { speaker ->
         speaker.setPlaybackEnabled(VOICE_PAGE_TTS_ENABLED && prefs.speakerEnabled.value)
       }
@@ -504,8 +540,11 @@ class NodeRuntime(
         nodeSession.sendNodeEvent(event = event, payloadJson = payloadJson)
       }
     }
-    scope.launch {
-      prefs.setVoiceMnnAvailable(localMnnAsr.preload())
+    refreshVoiceModelInstallState()
+    if (shouldPreloadVoiceMnnRuntime()) {
+      scope.launch {
+        prefs.setVoiceMnnAvailable(localMnnAsr.preload())
+      }
     }
     scope.launch {
       mouthCamera.state.collect { state ->
@@ -554,6 +593,7 @@ class NodeRuntime(
       inputManager = voiceAudioInputManager,
       localTtsEngine = localTtsBackend,
       onMnnAvailabilityChanged = { prefs.setVoiceMnnAvailable(it) },
+      ttsOutputModeProvider = { prefs.voiceTtsOutputMode.value },
     )
   }
 
@@ -602,6 +642,10 @@ class NodeRuntime(
 
   private fun updateStatus() {
     _isConnected.value = operatorConnected
+    localDlaWarmupStatusText?.let {
+      _statusText.value = it
+      return
+    }
     val operator = operatorStatusText.trim()
     val node = nodeStatusText.trim()
     _statusText.value =
@@ -618,6 +662,60 @@ class NodeRuntime(
         else -> node
       }
     updateHomeCanvasState()
+  }
+
+  private fun setLocalDlaWarmupStatus(message: String?) {
+    localDlaWarmupStatusText = message
+    if (message == null) {
+      updateStatus()
+    } else {
+      _statusText.value = message
+      updateHomeCanvasState()
+    }
+  }
+
+  private fun startLocalDlaWarmupReminder() {
+    val generation = localDlaWarmupGeneration.incrementAndGet()
+    setLocalDlaWarmupStatus("DLA warming...")
+    scope.launch {
+      val result = localDlaBridgeLauncher.warmupPersistentServer(generate = false)
+      if (localDlaWarmupGeneration.get() != generation) return@launch
+      setLocalDlaWarmupStatus(
+        when (result) {
+          LocalDlaBridgeWarmupResult.Ready -> "DLA ready"
+          LocalDlaBridgeWarmupResult.Unavailable -> "DLA warmup skipped"
+          LocalDlaBridgeWarmupResult.Failed -> "DLA warmup failed"
+        },
+      )
+      if (result == LocalDlaBridgeWarmupResult.Ready) {
+        showLocalDlaWarmupNotice(
+          title = "DLA ready",
+          message = "Local DLA server warmup is complete. The next model reply can use the warmed server.",
+        )
+      }
+      delay(10_000)
+      if (localDlaWarmupGeneration.get() == generation) {
+        setLocalDlaWarmupStatus(null)
+      }
+    }
+  }
+
+  internal fun showLocalDlaWarmupNotice(
+    title: String,
+    message: String,
+  ) {
+    _localDlaWarmupNotice.value =
+      LocalDlaWarmupNotice(
+        id = localDlaWarmupNoticeId.incrementAndGet(),
+        title = title,
+        message = message,
+      )
+  }
+
+  fun dismissLocalDlaWarmupNotice(id: Long) {
+    if (_localDlaWarmupNotice.value?.id == id) {
+      _localDlaWarmupNotice.value = null
+    }
   }
 
   private fun resolveMainSessionKey(): String {
@@ -968,10 +1066,83 @@ class NodeRuntime(
   }
 
   fun setVoiceScreenActive(active: Boolean) {
+    if (active) {
+      refreshVoiceModelInstallState()
+    }
     if (!active) {
       stopManualVoiceSession()
     }
     // Don't re-enable on active=true; mic toggle drives that
+  }
+
+  fun refreshVoiceModelInstallState() {
+    scope.launch(Dispatchers.IO) {
+      _voiceModelInstallState.value = voiceModelInstaller.currentState()
+    }
+  }
+
+  fun installVoiceModelPackage(uri: Uri) {
+    scope.launch {
+      _voiceModelInstallState.value =
+        _voiceModelInstallState.value.copy(
+          isInstalling = true,
+          statusText = "Importing voice model package",
+          errorText = null,
+        )
+      val result =
+        runCatching {
+          voiceModelInstaller.installFromUri(uri) { progress ->
+            _voiceModelInstallState.value =
+              _voiceModelInstallState.value.copy(
+                isInstalling = true,
+                statusText = "Importing ${progress.filesImported} files",
+                errorText = null,
+              )
+          }
+        }
+      result
+        .onSuccess { installResult ->
+          resetVoiceModelRuntimes()
+          val current = voiceModelInstaller.currentState()
+          val missing =
+            when {
+              installResult.asrImported && installResult.ttsImported -> null
+              installResult.asrImported -> "TTS model files were not found in this package."
+              installResult.ttsImported -> "ASR model files were not found in this package."
+              else -> "No supported ASR/TTS model files found."
+            }
+          _voiceModelInstallState.value =
+            current.copy(
+              isInstalling = false,
+              statusText = current.statusText,
+              errorText = missing,
+            )
+          if (_voiceCaptureMode.value == VoiceCaptureMode.ManualMic) {
+            setMouthAsrActive(true)
+          }
+        }.onFailure { err ->
+          val current = voiceModelInstaller.currentState()
+          _voiceModelInstallState.value =
+            current.copy(
+              isInstalling = false,
+              errorText = err.message ?: err::class.simpleName,
+            )
+        }
+    }
+  }
+
+  private fun resetVoiceModelRuntimes() {
+    mouthAsrStartJob?.cancel()
+    mouthAsrStartJob = null
+    voiceMnnTtsWarmJob?.cancel()
+    voiceMnnTtsWarmJob = null
+    voiceMnnRuntimeWarmed = false
+    voiceMnnTtsWarmed = false
+    localMnnAsr.release()
+    localTtsBackend.release()
+    prefs.setVoiceMnnAvailable(false)
+    _mouthAsrReadyText.value = "Voice models updated"
+    _voiceTtsReadyText.value = "TTS idle"
   }
 
   fun attachMouthCameraPreview(view: SimpleUVCCameraTextureView) {
@@ -983,6 +1154,21 @@ class NodeRuntime(
   }
 
   fun setMouthAsrActive(active: Boolean) {
+    if (active && _voiceCaptureMode.value == VoiceCaptureMode.ManualMic) {
+      if (mouthAsrStartJob?.isActive == true) {
+        Log.d("OpenClawVoice", "Mouth ASR start ignored; warm job already active")
+        return
+      }
+      if (voiceMnnRuntimeWarmed && localMnnAsr.isReady()) {
+        mouthCamera.start()
+        micCapture.setMouthAsrActive(true)
+        _mouthAsrReadyText.value = "Ready to speak"
+        if (VOICE_PAGE_TTS_ENABLED && VOICE_PAGE_WARM_TTS_RUNTIME_AFTER_ASR) {
+          warmVoiceTtsRuntimeInBackground()
+        }
+        return
+      }
+    }
     mouthAsrStartJob?.cancel()
     mouthAsrStartJob = null
     if (active) {
@@ -1002,15 +1188,25 @@ class NodeRuntime(
       mouthAsrStartJob =
         scope.launch {
           if (!warmVoiceMnnRuntimeForMouthAsr()) {
-            _mouthAsrReadyText.value = "Mouth ASR unavailable"
+            val reason = localMnnAsr.reason()
+            Log.w("OpenClawVoice", "Mouth ASR unavailable; local voice input disabled: ${reason ?: "unknown"}")
+            _mouthAsrReadyText.value = mouthAsrUnavailableReadyText(reason)
+            micCapture.setMouthAsrActive(false)
+            NodeForegroundService.setVoiceCaptureMode(appContext, VoiceCaptureMode.Off)
+            externalAudioCaptureActive.value = false
+            _voiceCaptureMode.value = VoiceCaptureMode.Off
             return@launch
           }
           if (_voiceCaptureMode.value != VoiceCaptureMode.ManualMic) return@launch
           micCapture.setMouthAsrActive(true)
           _mouthAsrReadyText.value = "Ready to speak"
+          if (VOICE_PAGE_TTS_ENABLED && VOICE_PAGE_WARM_TTS_RUNTIME_AFTER_ASR) {
+            warmVoiceTtsRuntimeInBackground()
+          }
         }
     } else {
       _mouthAsrReadyText.value = "Voice inactive"
+      _voiceTtsReadyText.value = "TTS idle"
       mouthCamera.stop()
       micCapture.setMouthAsrActive(false)
       NodeForegroundService.setVoiceCaptureMode(appContext, VoiceCaptureMode.Off)
@@ -1025,21 +1221,14 @@ class NodeRuntime(
       return true
     }
     _mouthAsrReadyText.value = "Preparing ASR"
+    val started = SystemClock.elapsedRealtime()
     val asrReady = localMnnAsr.preload()
+    val elapsed = SystemClock.elapsedRealtime() - started
+    if (elapsed > VOICE_ASR_PRELOAD_SLOW_LOG_MS) {
+      Log.w("OpenClawVoice", "MNN ASR preload slow durMs=$elapsed")
+    }
     prefs.setVoiceMnnAvailable(asrReady)
     if (!asrReady) return false
-    if (VOICE_PAGE_WARM_TTS_RUNTIME_FOR_ASR) {
-      _mouthAsrReadyText.value = if (VOICE_PAGE_TTS_ENABLED) "Preparing playback" else "Preparing voice runtime"
-      val ttsWarmJob = warmVoiceTtsRuntimeInBackground()
-      val ttsCompleted =
-        withTimeoutOrNull(VOICE_TTS_PRELOAD_WAIT_MS) {
-          ttsWarmJob.join()
-          true
-        } == true
-      if (!ttsCompleted) {
-        Log.w("OpenClawVoice", "MNN TTS runtime preload still running after ${VOICE_TTS_PRELOAD_WAIT_MS}ms; enabling ASR")
-      }
-    }
     voiceMnnRuntimeWarmed = true
     _mouthAsrReadyText.value = "Ready to speak"
     return true
@@ -1047,8 +1236,12 @@ class NodeRuntime(
 
   private fun warmVoiceTtsRuntimeInBackground(): Job {
     val active = voiceMnnTtsWarmJob
-    if (voiceMnnTtsWarmed) return active ?: scope.launch {}
+    if (voiceMnnTtsWarmed) {
+      _voiceTtsReadyText.value = voiceTtsReadyStatusText(ready = true, reason = null)
+      return active ?: scope.launch {}
+    }
     if (active?.isActive == true) return active
+    _voiceTtsReadyText.value = "TTS warming"
     val job =
       scope.launch(Dispatchers.IO) {
         val started = SystemClock.elapsedRealtime()
@@ -1058,8 +1251,13 @@ class NodeRuntime(
             .onFailure { err ->
               Log.w("OpenClawVoice", "MNN TTS preload failed: ${err.message ?: err::class.simpleName}")
             }.getOrDefault(false)
+        val elapsed = SystemClock.elapsedRealtime() - started
+        if (elapsed > VOICE_TTS_PRELOAD_SLOW_LOG_MS) {
+          Log.w("OpenClawVoice", "MNN TTS preload slow durMs=$elapsed")
+        }
         voiceMnnTtsWarmed = ready
-        Log.d("OpenClawVoice", "MNN TTS preload ok=$ready durMs=${SystemClock.elapsedRealtime() - started}")
+        _voiceTtsReadyText.value = voiceTtsReadyStatusText(ready = ready, reason = localTtsBackend.reason())
+        Log.d("OpenClawVoice", "MNN TTS preload ok=$ready durMs=$elapsed")
       }
     voiceMnnTtsWarmJob = job
     return job
@@ -1075,6 +1273,13 @@ class NodeRuntime(
 
   val speakerEnabled: StateFlow<Boolean>
     get() = prefs.speakerEnabled
+
+  val voiceTtsOutputMode: StateFlow<VoiceTtsOutputMode>
+    get() = prefs.voiceTtsOutputMode
+
+  fun setVoiceTtsOutputMode(mode: VoiceTtsOutputMode) {
+    prefs.setVoiceTtsOutputMode(mode)
+  }
 
   fun setSpeakerEnabled(value: Boolean) {
     prefs.setSpeakerEnabled(value)
@@ -1249,12 +1454,46 @@ class NodeRuntime(
       return
     }
     scope.launch {
+      val configuredModelSettings = prefs.localModelProviderSettings()
+      val dlaLaunchResult =
+        if (LocalModelProviderConfig.shouldUseDlaDefaults(configuredModelSettings) ||
+          LocalModelProviderConfig.isDlaProvider(configuredModelSettings)
+        ) {
+          localDlaBridgeLauncher.ensureStarted()
+        } else {
+          LocalDlaBridgeLaunchResult.Unavailable
+        }
+      when (dlaLaunchResult) {
+        LocalDlaBridgeLaunchResult.Failed -> {
+          operatorStatusText = "Gateway error: local DLA bridge did not start"
+          nodeStatusText = "Gateway error: local DLA bridge did not start"
+          updateStatus()
+          return@launch
+        }
+        LocalDlaBridgeLaunchResult.Started,
+        LocalDlaBridgeLaunchResult.AlreadyRunning,
+        LocalDlaBridgeLaunchResult.Unavailable,
+        -> Unit
+      }
+      val modelSettings =
+        if (dlaLaunchResult == LocalDlaBridgeLaunchResult.Started ||
+          dlaLaunchResult == LocalDlaBridgeLaunchResult.AlreadyRunning
+        ) {
+          LocalModelProviderConfig.dlaProviderSettings()
+        } else {
+          configuredModelSettings
+        }
       val localConfig =
         LocalModelProviderConfig.sync(
           openClawHome = localOpenClawHome,
-          settings = prefs.localModelProviderSettings(),
+          settings = modelSettings,
           gatewayPort = endpoint.port,
         )
+      if (dlaLaunchResult == LocalDlaBridgeLaunchResult.Started ||
+        dlaLaunchResult == LocalDlaBridgeLaunchResult.AlreadyRunning
+      ) {
+        startLocalDlaWarmupReminder()
+      }
       val launchResult = localGatewayLauncher.ensureStarted(endpoint, tls)
       when (launchResult) {
         LocalGatewayLaunchResult.Failed -> {
@@ -1381,6 +1620,9 @@ class NodeRuntime(
     connectedEndpoint = null
     activeGatewayAuth = null
     _pendingGatewayTrust.value = null
+    localDlaWarmupGeneration.incrementAndGet()
+    localDlaWarmupStatusText = null
+    _localDlaWarmupNotice.value = null
     operatorSession.disconnect()
     nodeSession.disconnect()
     operatorConnected = false
@@ -1390,8 +1632,9 @@ class NodeRuntime(
     updateStatus()
     if (shouldStopLocalGateway) {
       scope.launch {
+        val dlaStopResult = localDlaBridgeLauncher.stop()
         val stopResult = localGatewayLauncher.stop()
-        if (stopResult == LocalGatewayStopResult.Failed) {
+        if (stopResult == LocalGatewayStopResult.Failed || dlaStopResult == LocalDlaBridgeStopResult.Failed) {
           operatorStatusText = "Gateway error: local gateway did not stop"
           nodeStatusText = "Gateway error: local gateway did not stop"
           updateStatus()
@@ -1504,6 +1747,10 @@ class NodeRuntime(
 
   fun switchChatSession(sessionKey: String) {
     chat.switchSession(sessionKey)
+  }
+
+  fun startFreshChatSession() {
+    chat.startFreshSession()
   }
 
   fun abortChat() {
@@ -1875,6 +2122,26 @@ internal fun shouldConnectOperatorSession(
   auth: NodeRuntime.GatewayConnectAuth,
   storedOperatorToken: String?,
 ): Boolean = resolveOperatorSessionConnectAuth(auth, storedOperatorToken) != null
+
+internal fun mouthAsrUnavailableReadyText(reason: String?): String = "Mouth ASR unavailable"
+
+internal fun shouldKeepMouthCameraRunningAfterMouthAsrFallback(): Boolean = true
+
+internal fun voiceTtsReadyStatusText(
+  ready: Boolean,
+  reason: String?,
+): String {
+  if (ready) return "TTS ready"
+  val raw = reason?.trim()?.takeIf { it.isNotEmpty() }
+  val detail =
+    when {
+      raw == null -> "unknown"
+      raw.contains("libMNN.so", ignoreCase = true) && raw.contains("not found", ignoreCase = true) -> "libMNN.so missing"
+      raw.contains("libmtk_llm_jni.so", ignoreCase = true) && raw.contains("not found", ignoreCase = true) -> "libmtk_llm_jni.so missing"
+      else -> raw
+    }
+  return "TTS unavailable: ${detail.take(80)}"
+}
 
 private enum class HomeCanvasGatewayState {
   Connected,

@@ -1,17 +1,21 @@
 package ai.openclaw.app
 
+import ai.openclaw.app.node.LocalModelProviderConfig
+import ai.openclaw.app.voice.VoiceTtsOutputMode
 import android.content.Context
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
-import ai.openclaw.app.node.LocalModelProviderConfig
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.jsonObject
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
+import java.nio.file.Files
 
 @RunWith(RobolectricTestRunner::class)
 class SecurePrefsTest {
@@ -80,6 +84,21 @@ class SecurePrefsTest {
   }
 
   @Test
+  fun voiceTtsOutputMode_persistsSelectedRoute() {
+    val context = RuntimeEnvironment.getApplication()
+    val plainPrefs = context.getSharedPreferences("openclaw.node", Context.MODE_PRIVATE)
+    plainPrefs.edit().clear().commit()
+    val prefs = SecurePrefs(context)
+
+    assertEquals(VoiceTtsOutputMode.BuiltInSpeaker, prefs.voiceTtsOutputMode.value)
+
+    prefs.setVoiceTtsOutputMode(VoiceTtsOutputMode.Q5Usb)
+
+    assertEquals(VoiceTtsOutputMode.Q5Usb, prefs.voiceTtsOutputMode.value)
+    assertEquals("q5_usb", plainPrefs.getString("voice.tts.outputMode", null))
+  }
+
+  @Test
   fun saveGatewayBootstrapToken_persistsSeparatelyFromSharedToken() {
     val context = RuntimeEnvironment.getApplication()
     val securePrefs = context.getSharedPreferences("openclaw.node.secure.test", Context.MODE_PRIVATE)
@@ -140,7 +159,7 @@ class SecurePrefsTest {
   }
 
   @Test
-  fun localModelProviderConfig_removesDisabledDlaProviderFromGatewayConfig() {
+  fun localModelProviderConfig_allowsDlaProviderWithProductIntroTokenLimit() {
     val existing =
       Json
         .parseToJsonElement(
@@ -178,11 +197,11 @@ class SecurePrefsTest {
         existing = existing,
         settings =
           LocalModelProviderSettings(
-            providerId = SecurePrefs.defaultLocalModelProviderId,
-            baseUrl = "https://coding.dashscope.aliyuncs.com/apps/anthropic",
-            apiKey = "cloud-key",
-            primaryModel = "qwen3.6-plus",
-            modelIds = listOf("qwen3.6-plus"),
+            providerId = LocalModelProviderConfig.DLA_PROVIDER_ID,
+            baseUrl = LocalModelProviderConfig.DLA_BASE_URL,
+            apiKey = LocalModelProviderConfig.DLA_API_KEY,
+            primaryModel = LocalModelProviderConfig.DLA_MODEL_ID,
+            modelIds = listOf(LocalModelProviderConfig.DLA_MODEL_ID),
           ),
       )
 
@@ -190,10 +209,37 @@ class SecurePrefsTest {
     val defaults = next["agents"]!!.jsonObject["defaults"]!!.jsonObject
     val defaultModels = defaults["models"]!!.jsonObject
     val firstAgent = (next["agents"]!!.jsonObject["list"] as kotlinx.serialization.json.JsonArray)[0].jsonObject
+    val dlaProvider = providers[LocalModelProviderConfig.DLA_PROVIDER_ID]!!.jsonObject
+    val dlaModel = (dlaProvider["models"] as kotlinx.serialization.json.JsonArray)[0].jsonObject
 
-    assertFalse(providers.containsKey("qwen3-dla"))
-    assertFalse(defaultModels.containsKey("qwen3-dla/qwen3-1.7b-dla"))
-    assertEquals("dashscope-coding/qwen3.6-plus", defaults["model"]!!.jsonObject["primary"].toString().trim('"'))
-    assertEquals("dashscope-coding/qwen3.6-plus", firstAgent["model"].toString().trim('"'))
+    assertTrue(providers.containsKey(LocalModelProviderConfig.DLA_PROVIDER_ID))
+    assertTrue(defaultModels.containsKey("${LocalModelProviderConfig.DLA_PROVIDER_ID}/${LocalModelProviderConfig.DLA_MODEL_ID}"))
+    assertEquals(LocalModelProviderConfig.DLA_BASE_URL, dlaProvider["baseUrl"].toString().trim('"'))
+    assertEquals(32_768, dlaModel["contextWindow"].toString().toInt())
+    assertEquals(256, dlaModel["maxTokens"].toString().toInt())
+    assertEquals(
+      "${LocalModelProviderConfig.DLA_PROVIDER_ID}/${LocalModelProviderConfig.DLA_MODEL_ID}",
+      defaults["model"]!!.jsonObject["primary"].toString().trim('"'),
+    )
+    assertEquals(
+      "${LocalModelProviderConfig.DLA_PROVIDER_ID}/${LocalModelProviderConfig.DLA_MODEL_ID}",
+      firstAgent["model"].toString().trim('"'),
+    )
+  }
+
+  @Test
+  fun localModelProviderSync_disablesAutoCompactionForDlaProvider() {
+    val home = Files.createTempDirectory("openclaw-dla-home").toFile()
+
+    LocalModelProviderConfig.sync(
+      openClawHome = home,
+      settings = LocalModelProviderConfig.dlaProviderSettings(),
+    )
+
+    val settingsFile = home.resolve(".openclaw/settings.json")
+    val settings = Json.parseToJsonElement(settingsFile.readText()).jsonObject
+    val compaction = settings["compaction"]!!.jsonObject
+
+    assertEquals(false, compaction["enabled"]!!.jsonPrimitive.booleanOrNull)
   }
 }

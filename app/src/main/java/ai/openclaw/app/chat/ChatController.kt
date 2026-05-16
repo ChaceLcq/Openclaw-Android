@@ -1,6 +1,8 @@
 package ai.openclaw.app.chat
 
 import ai.openclaw.app.gateway.GatewaySession
+import android.os.SystemClock
+import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -17,6 +19,37 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
+
+internal const val EVENT_STREAM_INTERRUPTED_ERROR = "Event stream interrupted; try refreshing."
+
+internal fun chatErrorAfterTerminalState(
+  state: String?,
+  payloadErrorMessage: String?,
+  existingError: String?,
+): String? =
+  when (state) {
+    "error" -> payloadErrorMessage ?: "Chat failed"
+    "final", "aborted" -> if (existingError == EVENT_STREAM_INTERRUPTED_ERROR) null else existingError
+    else -> existingError
+  }
+
+internal fun eventStreamInterruptedError(assistantTextVisible: Boolean): String? =
+  if (assistantTextVisible) null else EVENT_STREAM_INTERRUPTED_ERROR
+
+internal fun chatErrorAfterHistoryRefresh(
+  messages: List<ChatMessage>,
+  existingError: String?,
+): String? =
+  if (existingError == EVENT_STREAM_INTERRUPTED_ERROR && messagesContainAssistantText(messages)) {
+    null
+  } else {
+    existingError
+  }
+
+internal fun messagesContainAssistantText(messages: List<ChatMessage>): Boolean =
+  messages.any { message ->
+    message.role == "assistant" && message.content.any { !it.text.isNullOrBlank() }
+  }
 
 class ChatController(
   private val scope: CoroutineScope,
@@ -58,6 +91,8 @@ class ChatController(
 
   private val pendingRuns = mutableSetOf<String>()
   private val pendingRunTimeoutJobs = ConcurrentHashMap<String, Job>()
+  private val pendingRunStartedAtMs = ConcurrentHashMap<String, Long>()
+  private val firstDeltaLogged = ConcurrentHashMap.newKeySet<String>()
   private val pendingRunTimeoutMs = 120_000L
 
   private var lastHealthPollAtMs: Long? = null
@@ -118,6 +153,19 @@ class ChatController(
     scope.launch { bootstrap(forceHealth = true, refreshSessions = false) }
   }
 
+  fun startFreshSession(nowMs: Long = System.currentTimeMillis()) {
+    val key = freshChatSessionKey(baseSessionKey = _sessionKey.value, nowMs = nowMs)
+    _sessionKey.value = key
+    clearPendingRuns()
+    pendingToolCallsById.clear()
+    publishPendingToolCalls()
+    _messages.value = emptyList()
+    _errorText.value = null
+    _streamingAssistantText.value = null
+    _sessionId.value = null
+    scope.launch { bootstrap(forceHealth = true, refreshSessions = true) }
+  }
+
   private fun normalizeRequestedSessionKey(sessionKey: String): String {
     val key = sessionKey.trim()
     if (key.isEmpty()) return appliedMainSessionKey
@@ -151,10 +199,12 @@ class ChatController(
       return false
     }
 
-    val runId = UUID.randomUUID().toString()
     val text = if (trimmed.isEmpty() && attachments.isNotEmpty()) "See attached." else trimmed
     val sessionKey = _sessionKey.value
     val thinking = normalizeThinking(thinkingLevel)
+    val runId = UUID.randomUUID().toString()
+    pendingRunStartedAtMs[runId] = SystemClock.elapsedRealtime()
+    logRunPhase(runId, "ui_send", "sessionKey=$sessionKey messageChars=${text.length} thinking=$thinking attachments=${attachments.size}")
 
     // Optimistic user message.
     val userContent =
@@ -216,8 +266,11 @@ class ChatController(
           }
         }
       val res = session.request("chat.send", params.toString())
+      logRunPhase(runId, "chat_send_accepted")
       val actualRunId = parseRunId(res) ?: runId
       if (actualRunId != runId) {
+        pendingRunStartedAtMs[actualRunId] = pendingRunStartedAtMs[runId] ?: SystemClock.elapsedRealtime()
+        firstDeltaLogged.remove(runId)
         clearPendingRun(runId)
         armPendingRunTimeout(actualRunId)
         synchronized(pendingRuns) {
@@ -227,6 +280,7 @@ class ChatController(
       }
       true
     } catch (err: Throwable) {
+      logRunPhase(runId, "chat_send_failed", "message=${err.message.orEmpty().take(120)}")
       clearPendingRun(runId)
       _errorText.value = err.message
       false
@@ -268,7 +322,7 @@ class ChatController(
         _healthOk.value = true
       }
       "seqGap" -> {
-        _errorText.value = "Event stream interrupted; try refreshing."
+        _errorText.value = eventStreamInterruptedError(assistantTextVisible = hasAssistantTextVisible())
         clearPendingRuns()
       }
       "chat" -> {
@@ -303,6 +357,11 @@ class ChatController(
       val historyJson = session.request("chat.history", """{"sessionKey":"$key"}""")
       val history = parseHistory(historyJson, sessionKey = key, previousMessages = _messages.value)
       _messages.value = history.messages
+      _errorText.value =
+        chatErrorAfterHistoryRefresh(
+          messages = history.messages,
+          existingError = _errorText.value,
+        )
       _sessionId.value = history.sessionId
       history.thinkingLevel
         ?.trim()
@@ -362,13 +421,22 @@ class ChatController(
         if (!isPending) return
         val text = parseAssistantDeltaText(payload)
         if (!text.isNullOrEmpty()) {
+          if (runId != null && firstDeltaLogged.add(runId)) {
+            logRunPhase(runId, "first_delta", "chars=${text.length}")
+          }
           _streamingAssistantText.value = text
         }
       }
       "final", "aborted", "error" -> {
-        if (state == "error") {
-          _errorText.value = payload["errorMessage"].asStringOrNull() ?: "Chat failed"
+        if (runId != null) {
+          logRunPhase(runId, "terminal_event", "state=${state.orEmpty()} error=${payload["errorMessage"].asStringOrNull().orEmpty().take(120)}")
         }
+        _errorText.value =
+          chatErrorAfterTerminalState(
+            state = state,
+            payloadErrorMessage = payload["errorMessage"].asStringOrNull(),
+            existingError = _errorText.value,
+          )
         if (runId != null) clearPendingRun(runId) else clearPendingRuns()
         pendingToolCallsById.clear()
         publishPendingToolCalls()
@@ -379,6 +447,16 @@ class ChatController(
               session.request("chat.history", """{"sessionKey":"${_sessionKey.value}"}""")
             val history = parseHistory(historyJson, sessionKey = _sessionKey.value, previousMessages = _messages.value)
             _messages.value = history.messages
+            if (runId != null) {
+              logRunPhase(runId, "history_refreshed", "messages=${history.messages.size}")
+              pendingRunStartedAtMs.remove(runId)
+              firstDeltaLogged.remove(runId)
+            }
+            _errorText.value =
+              chatErrorAfterHistoryRefresh(
+                messages = history.messages,
+                existingError = _errorText.value,
+              )
             _sessionId.value = history.sessionId
             history.thinkingLevel
               ?.trim()
@@ -431,7 +509,7 @@ class ChatController(
         }
       }
       "error" -> {
-        _errorText.value = "Event stream interrupted; try refreshing."
+        _errorText.value = eventStreamInterruptedError(assistantTextVisible = hasAssistantTextVisible())
         clearPendingRuns()
         pendingToolCallsById.clear()
         publishPendingToolCalls()
@@ -458,6 +536,21 @@ class ChatController(
   private fun publishPendingToolCalls() {
     _pendingToolCalls.value =
       pendingToolCallsById.values.sortedBy { it.startedAtMs }
+  }
+
+  private fun hasAssistantTextVisible(): Boolean =
+    !_streamingAssistantText.value.isNullOrBlank() ||
+      messagesContainAssistantText(_messages.value)
+
+  private fun logRunPhase(
+    runId: String,
+    phase: String,
+    extra: String = "",
+  ) {
+    val now = SystemClock.elapsedRealtime()
+    val started = pendingRunStartedAtMs[runId] ?: now
+    val suffix = if (extra.isBlank()) "" else " $extra"
+    Log.d("OpenClawChatPerf", "run=$runId phase=$phase t=${System.currentTimeMillis()} elapsedMs=${now - started}$suffix")
   }
 
   private fun armPendingRunTimeout(runId: String) {
@@ -488,6 +581,8 @@ class ChatController(
       job.cancel()
     }
     pendingRunTimeoutJobs.clear()
+    pendingRunStartedAtMs.clear()
+    firstDeltaLogged.clear()
     synchronized(pendingRuns) {
       pendingRuns.clear()
       _pendingRunCount.value = 0
@@ -522,7 +617,7 @@ class ChatController(
       sessionKey = sessionKey,
       sessionId = sid,
       thinkingLevel = thinkingLevel,
-      messages = reconcileMessageIds(previous = previousMessages, incoming = messages),
+      messages = reconcileMessageIds(previous = previousMessages, incoming = displayableHistoryMessages(messages)),
     )
   }
 
@@ -595,6 +690,20 @@ internal fun applyMainSessionKey(
     appliedMainSessionKey = nextMainSessionKey,
   )
 }
+
+internal fun freshChatSessionKey(
+  baseSessionKey: String,
+  nowMs: Long,
+): String {
+  val base = baseSessionKey.trim().ifEmpty { "main" }
+  return "$base:clean:$nowMs"
+}
+
+internal fun displayableHistoryMessages(messages: List<ChatMessage>): List<ChatMessage> =
+  messages.filterNot(::isHiddenSystemHistoryMessage)
+
+private fun isHiddenSystemHistoryMessage(message: ChatMessage): Boolean =
+  message.role.equals("system", ignoreCase = true)
 
 internal fun reconcileMessageIds(
   previous: List<ChatMessage>,

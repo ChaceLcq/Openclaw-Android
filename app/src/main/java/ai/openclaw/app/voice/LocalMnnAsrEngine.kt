@@ -16,7 +16,7 @@ enum class LocalMnnAsrStatus(
   Idle("ASR idle"),
   Warming("ASR warming"),
   Ready("MNN Voice ready"),
-  Unavailable("System fallback"),
+  Unavailable("ASR unavailable"),
 }
 
 class LocalMnnAsrEngine(
@@ -43,7 +43,13 @@ class LocalMnnAsrEngine(
         return true
       }
       initDeferred?.let {
-        pending = it
+        if (it.isActive) {
+          pending = it
+        } else {
+          initDeferred = null
+        }
+      }
+      pending?.let {
         _status.value = LocalMnnAsrStatus.Warming
       } ?: run {
         owner = CompletableDeferred()
@@ -58,9 +64,11 @@ class LocalMnnAsrEngine(
       var candidate: SafeAsrServiceWrapper? = null
       val ok =
         try {
+          Log.d(TAG, "ASR preload start")
           candidate = SafeAsrServiceWrapper(context.applicationContext)
           val completed = CompletableDeferred<Boolean>()
           candidate.initializeModel { initialized ->
+            Log.d(TAG, "ASR initialize callback initialized=$initialized")
             completed.complete(initialized)
           }
           completed.await()
@@ -77,7 +85,7 @@ class LocalMnnAsrEngine(
           _status.value = LocalMnnAsrStatus.Ready
         } else {
           activeCandidate?.release()
-          unavailableReason = unavailableReason ?: "MNN ASR init failed"
+          unavailableReason = activeCandidate?.getLastErrorMessage() ?: unavailableReason ?: "MNN ASR init failed"
           _status.value = LocalMnnAsrStatus.Unavailable
         }
         if (initDeferred === deferred) initDeferred = null
@@ -135,6 +143,15 @@ class LocalMnnAsrEngine(
   }
 
   fun reason(): String? = unavailableReason
+
+  fun markUnavailable(reason: String) {
+    synchronized(lock) {
+      unavailableReason = reason
+      initDeferred?.cancel()
+      initDeferred = null
+      _status.value = LocalMnnAsrStatus.Unavailable
+    }
+  }
 
   fun release() {
     synchronized(lock) {

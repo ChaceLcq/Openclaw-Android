@@ -53,6 +53,9 @@ class SafeAsrServiceWrapper(
     @Volatile
     private var isStreaming = false
 
+    @Volatile
+    private var lastErrorMessage: String? = null
+
     private var offlineRecognizer: OfflineRecognizer? = null
     private var vad: Vad? = null
     private var partialResultListener: OnPartialResultListener? = null
@@ -81,20 +84,25 @@ class SafeAsrServiceWrapper(
             }
         }
 
+        Log.d(tag, "ASR initializeModel requested")
         scope.launch(Dispatchers.IO) {
             try {
+                Log.d(tag, "ASR prepareModelFiles start")
                 prepareModelFiles()
+                Log.d(tag, "ASR createRuntimeBundle start model=$modelFilePath")
                 val runtimeBundle = createRuntimeBundle()
                 synchronized(decodeLock) {
                     replaceRuntime(runtimeBundle)
                     isInitialized = true
                 }
+                lastErrorMessage = null
 
                 Log.d(tag, "ASR initialized from files: $modelFilePath")
                 withContext(Dispatchers.Main) {
                     onComplete(true)
                 }
             } catch (t: Throwable) {
+                lastErrorMessage = t.message ?: t::class.simpleName
                 Log.e(tag, "Failed to initialize ASR", t)
                 synchronized(decodeLock) {
                     clearRuntime()
@@ -108,6 +116,8 @@ class SafeAsrServiceWrapper(
     }
 
     fun isModelInitialized(): Boolean = isInitialized && offlineRecognizer != null && vad != null
+
+    fun getLastErrorMessage(): String? = lastErrorMessage
 
     fun getVad(): Vad? = vad
 
@@ -243,6 +253,19 @@ class SafeAsrServiceWrapper(
     }
 
     private fun prepareModelFiles() {
+        if (modelDir == null) {
+            existingAsrModelFiles(
+                appFilesDir = context.filesDir,
+                externalFilesDir = context.getExternalFilesDir(null),
+            )?.let { files ->
+                modelFilePath = files.modelFile.absolutePath
+                tokensFilePath = files.tokensFile.absolutePath
+                vadFilePath = files.vadFile.absolutePath
+                Log.d(tag, "ASR using existing local model files: $modelFilePath")
+                return
+            }
+        }
+
         val targetDir = File(modelDir ?: File(context.filesDir, "asr_models/sense").absolutePath)
         val modelFile = ensurePreferredAssetFile(
             preferredAssetPath = "sense/sense_weight_quant.mnn",
@@ -264,6 +287,7 @@ class SafeAsrServiceWrapper(
         fallbackAssetPath: String,
         fallbackDestination: File,
     ): File {
+        existingPreferredAssetFile(preferredDestination, fallbackDestination)?.let { return it }
         return try {
             context.assets.open(preferredAssetPath).close()
             ensureAssetFile(preferredAssetPath, preferredDestination)
@@ -420,4 +444,45 @@ class SafeAsrServiceWrapper(
         }
         return destination
     }
+}
+
+internal fun existingPreferredAssetFile(
+    preferredDestination: File,
+    fallbackDestination: File,
+): File? =
+    when {
+        preferredDestination.exists() && preferredDestination.length() > 0L -> preferredDestination
+        fallbackDestination.exists() && fallbackDestination.length() > 0L -> fallbackDestination
+        else -> null
+    }
+
+internal data class ExistingAsrModelFiles(
+    val modelFile: File,
+    val tokensFile: File,
+    val vadFile: File,
+)
+
+internal fun existingAsrModelFiles(
+    appFilesDir: File,
+    externalFilesDir: File?,
+): ExistingAsrModelFiles? {
+    val roots =
+        listOfNotNull(
+            File(appFilesDir, "asr_models"),
+            File(appFilesDir, "models/asr"),
+            externalFilesDir?.let { File(it, "models/asr") },
+            externalFilesDir?.let { File(it, "asr_models") },
+        )
+    for (root in roots) {
+        val senseDir = File(root, "sense")
+        val model =
+            existingPreferredAssetFile(
+                preferredDestination = File(senseDir, "sense_weight_quant.mnn"),
+                fallbackDestination = File(senseDir, "sense.mnn"),
+            ) ?: continue
+        val tokens = File(senseDir, "sense_tokens.txt").takeIf { it.exists() && it.length() > 0L } ?: continue
+        val vad = File(root, "vad/silero_vad_int8.mnn").takeIf { it.exists() && it.length() > 0L } ?: continue
+        return ExistingAsrModelFiles(modelFile = model, tokensFile = tokens, vadFile = vad)
+    }
+    return null
 }

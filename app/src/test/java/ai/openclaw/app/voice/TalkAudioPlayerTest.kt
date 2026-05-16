@@ -6,6 +6,11 @@ import org.junit.Test
 
 class TalkAudioPlayerTest {
   @Test
+  fun ttsOutputModeFallsBackToSpeakerForUnknownId() {
+    assertEquals(VoiceTtsOutputMode.BuiltInSpeaker, VoiceTtsOutputMode.fromId("missing"))
+  }
+
+  @Test
   fun resolvesPcmPlaybackFromOutputFormat() {
     val mode =
       TalkAudioPlayer.resolvePlaybackMode(

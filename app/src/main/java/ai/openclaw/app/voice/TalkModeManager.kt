@@ -55,6 +55,7 @@ class TalkModeManager internal constructor(
   private val inputManager: VoiceAudioInputManager? = null,
   private val localTtsEngine: LocalTtsBackend? = null,
   private val onMnnAvailabilityChanged: (Boolean) -> Unit = {},
+  private val ttsOutputModeProvider: () -> VoiceTtsOutputMode = { VoiceTtsOutputMode.BuiltInSpeaker },
 ) {
   companion object {
     private const val tag = "TalkMode"
@@ -72,7 +73,7 @@ class TalkModeManager internal constructor(
   private val mainHandler = Handler(Looper.getMainLooper())
   private val json = Json { ignoreUnknownKeys = true }
   private val talkSpeakClient = TalkSpeakClient(session = session, json = json)
-  private val talkAudioPlayer = TalkAudioPlayer(context)
+  private val talkAudioPlayer = TalkAudioPlayer(context, outputModeProvider = ttsOutputModeProvider)
 
   private val _isEnabled = MutableStateFlow(false)
   val isEnabled: StateFlow<Boolean> = _isEnabled
@@ -942,9 +943,7 @@ class TalkModeManager internal constructor(
   private fun sanitizeForMnnTts(text: String): String =
     MeloTtsTextPreprocessor.sanitize(text)
 
-  private fun splitForMnnTts(text: String): List<String> {
-    return MeloTtsTextPreprocessor.split(text)
-  }
+  private fun splitForMnnTts(text: String): List<String> = MeloTtsTextPreprocessor.split(text)
 
   private suspend fun runPlaybackSession(
     playbackToken: Long,

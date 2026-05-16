@@ -24,8 +24,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AddComment
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -35,6 +39,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -45,6 +50,8 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+
+internal const val START_NEW_CHAT_CONTENT_DESCRIPTION = "Start new chat"
 
 internal fun resolvePendingAssistantAutoSend(
   pendingPrompt: String?,
@@ -142,7 +149,9 @@ fun ChatSheetContent(viewModel: MainViewModel) {
       sessionKey = sessionKey,
       sessions = sessions,
       mainSessionKey = mainSessionKey,
+      pendingRunCount = pendingRunCount,
       onSelectSession = { key -> viewModel.switchChatSession(key) },
+      onStartFreshSession = { viewModel.startFreshChatSession() },
     )
 
     if (!errorText.isNullOrBlank()) {
@@ -197,17 +206,40 @@ private fun ChatThreadSelector(
   sessionKey: String,
   sessions: List<ChatSessionEntry>,
   mainSessionKey: String,
+  pendingRunCount: Int,
   onSelectSession: (String) -> Unit,
+  onStartFreshSession: () -> Unit,
 ) {
   val sessionOptions =
     remember(sessionKey, sessions, mainSessionKey) {
       resolveSessionChoices(sessionKey, sessions, mainSessionKey = mainSessionKey)
     }
+  val canStartFresh = pendingRunCount == 0
 
   Row(
     modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
     horizontalArrangement = Arrangement.spacedBy(8.dp),
+    verticalAlignment = Alignment.CenterVertically,
   ) {
+    Surface(
+      onClick = {
+        if (canStartFresh) {
+          onStartFreshSession()
+        }
+      },
+      shape = RoundedCornerShape(14.dp),
+      color = mobileCardSurface,
+      border = BorderStroke(1.dp, mobileBorderStrong),
+      tonalElevation = 0.dp,
+      shadowElevation = 0.dp,
+    ) {
+      Icon(
+        Icons.Default.AddComment,
+        contentDescription = START_NEW_CHAT_CONTENT_DESCRIPTION,
+        modifier = Modifier.padding(10.dp).size(18.dp),
+        tint = if (canStartFresh) mobileText else mobileBorderStrong,
+      )
+    }
     for (entry in sessionOptions) {
       val active = entry.key == sessionKey
       Surface(

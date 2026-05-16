@@ -28,10 +28,13 @@ import androidx.compose.material.icons.filled.ChatBubble
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.RecordVoiceOver
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -107,6 +110,7 @@ fun PostOnboardingTabs(
 
   val statusText by viewModel.statusText.collectAsState()
   val isConnected by viewModel.isConnected.collectAsState()
+  val localDlaWarmupNotice by viewModel.localDlaWarmupNotice.collectAsState()
 
   val statusVisual =
     remember(statusText, isConnected) {
@@ -185,6 +189,35 @@ fun PostOnboardingTabs(
         HomeTab.Settings -> SettingsSheet(viewModel = viewModel)
       }
     }
+  }
+
+  localDlaWarmupNotice?.let { notice ->
+    AlertDialog(
+      onDismissRequest = { viewModel.dismissLocalDlaWarmupNotice(notice.id) },
+      containerColor = mobileCardSurface,
+      title = {
+        Text(
+          text = notice.title,
+          style = mobileHeadline,
+          color = mobileText,
+        )
+      },
+      text = {
+        Text(
+          text = notice.message,
+          style = mobileCallout,
+          color = mobileText,
+        )
+      },
+      confirmButton = {
+        TextButton(
+          onClick = { viewModel.dismissLocalDlaWarmupNotice(notice.id) },
+          colors = ButtonDefaults.textButtonColors(contentColor = mobileAccent),
+        ) {
+          Text("OK")
+        }
+      },
+    )
   }
 }
 

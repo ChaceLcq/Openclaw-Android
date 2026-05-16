@@ -4,6 +4,7 @@ package ai.openclaw.app
 
 import ai.openclaw.app.voice.VoiceInputSelection
 import ai.openclaw.app.voice.VoiceInputSelectionMode
+import ai.openclaw.app.voice.VoiceTtsOutputMode
 import android.content.Context
 import android.content.SharedPreferences
 import androidx.core.content.edit
@@ -53,6 +54,7 @@ class SecurePrefs(
     private const val voiceInputModeKey = "voice.input.mode"
     private const val voiceInputDeviceKey = "voice.input.deviceKey"
     private const val voiceMnnAvailableKey = "voice.mnn.available"
+    private const val voiceTtsOutputModeKey = "voice.tts.outputMode"
   }
 
   private val appContext = context.applicationContext
@@ -207,6 +209,10 @@ class SecurePrefs(
 
   private val _voiceInputSelection = MutableStateFlow(loadVoiceInputSelection())
   val voiceInputSelection: StateFlow<VoiceInputSelection> = _voiceInputSelection
+
+  private val _voiceTtsOutputMode =
+    MutableStateFlow(VoiceTtsOutputMode.fromId(plainPrefs.getString(voiceTtsOutputModeKey, null)))
+  val voiceTtsOutputMode: StateFlow<VoiceTtsOutputMode> = _voiceTtsOutputMode
 
   private val _voiceMnnAvailable = MutableStateFlow(plainPrefs.getBoolean(voiceMnnAvailableKey, true))
   val voiceMnnAvailable: StateFlow<Boolean> = _voiceMnnAvailable
@@ -606,6 +612,11 @@ class SecurePrefs(
     _voiceInputSelection.value = selection
   }
 
+  fun setVoiceTtsOutputMode(mode: VoiceTtsOutputMode) {
+    plainPrefs.edit { putString(voiceTtsOutputModeKey, mode.rawValue) }
+    _voiceTtsOutputMode.value = mode
+  }
+
   fun setVoiceMnnAvailable(value: Boolean) {
     plainPrefs.edit { putBoolean(voiceMnnAvailableKey, value) }
     _voiceMnnAvailable.value = value
@@ -656,15 +667,13 @@ class SecurePrefs(
   private fun sanitizeLocalModelIds(
     modelIds: List<String>,
     primaryModel: String,
-  ): List<String> {
-    return (modelIds + primaryModel)
+  ): List<String> =
+    (modelIds + primaryModel)
       .map { it.trim() }
       .filter { it.isNotEmpty() }
       .distinct()
-  }
 
-  private fun encodeStringList(values: List<String>): String =
-    JsonArray(values.map { JsonPrimitive(it) }).toString()
+  private fun encodeStringList(values: List<String>): String = JsonArray(values.map { JsonPrimitive(it) }).toString()
 
   private fun loadVoiceWakeMode(): VoiceWakeMode {
     val raw = plainPrefs.getString(voiceWakeModeKey, null)

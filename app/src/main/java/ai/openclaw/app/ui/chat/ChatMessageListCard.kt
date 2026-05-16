@@ -38,6 +38,7 @@ fun ChatMessageListCard(
   val listState = rememberLazyListState()
   val displayMessages = remember(messages) { messages.asReversed() }
   val stream = streamingAssistantText?.trim()
+  val showThinking = showThinkingIndicator(pendingRunCount = pendingRunCount, streamingAssistantText = stream)
 
   // New list items/tool rows should animate into view, but token streaming should not restart
   // that animation on every delta.
@@ -74,7 +75,7 @@ fun ChatMessageListCard(
         }
       }
 
-      if (pendingRunCount > 0) {
+      if (showThinking) {
         item(key = "typing") {
           ChatTypingIndicatorBubble()
         }
@@ -90,6 +91,11 @@ fun ChatMessageListCard(
     }
   }
 }
+
+internal fun showThinkingIndicator(
+  pendingRunCount: Int,
+  streamingAssistantText: String?,
+): Boolean = pendingRunCount > 0 && streamingAssistantText.isNullOrBlank()
 
 @Composable
 private fun EmptyChatHint(

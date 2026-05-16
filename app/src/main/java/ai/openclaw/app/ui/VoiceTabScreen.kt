@@ -4,6 +4,8 @@ import ai.openclaw.app.MainViewModel
 import ai.openclaw.app.voice.LocalMnnAsrStatus
 import ai.openclaw.app.voice.VoiceConversationEntry
 import ai.openclaw.app.voice.VoiceConversationRole
+import ai.openclaw.app.voice.VoiceModelInstallState
+import ai.openclaw.app.voice.VoiceTtsOutputMode
 import android.Manifest
 import android.app.Activity
 import android.content.Context
@@ -42,7 +44,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -90,6 +96,9 @@ fun VoiceTabScreen(viewModel: MainViewModel) {
   val voiceInputLabel by viewModel.voiceInputLabel.collectAsState()
   val voiceMnnAsrStatus by viewModel.voiceMnnAsrStatus.collectAsState()
   val mouthAsrReadyText by viewModel.mouthAsrReadyText.collectAsState()
+  val voiceTtsReadyText by viewModel.voiceTtsReadyText.collectAsState()
+  val voiceTtsOutputMode by viewModel.voiceTtsOutputMode.collectAsState()
+  val voiceModelInstallState by viewModel.voiceModelInstallState.collectAsState()
   val mouthCameraState by viewModel.mouthCameraState.collectAsState()
 
   val hasStreamingAssistant = micConversation.any { it.role == VoiceConversationRole.Assistant && it.isStreaming }
@@ -102,16 +111,22 @@ fun VoiceTabScreen(viewModel: MainViewModel) {
       hasMicPermission = granted
       if (granted) viewModel.setMouthAsrActive(true)
     }
+  val modelPackagePicker =
+    rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+      uri?.let(viewModel::installVoiceModelPackage)
+    }
 
   DisposableEffect(lifecycleOwner, context) {
     val observer =
       LifecycleEventObserver { _, event ->
         if (event == Lifecycle.Event.ON_RESUME) {
+          viewModel.refreshVoiceModelInstallState()
           hasMicPermission = context.hasRecordAudioPermission()
           if (hasMicPermission) viewModel.setMouthAsrActive(true)
         }
       }
     lifecycleOwner.lifecycle.addObserver(observer)
+    viewModel.refreshVoiceModelInstallState()
     if (hasMicPermission) {
       viewModel.setMouthAsrActive(true)
     } else {
@@ -175,16 +190,12 @@ fun VoiceTabScreen(viewModel: MainViewModel) {
                 tint = mobileTextTertiary,
               )
               Text(
-                if (mouthAsrReadyText == "Ready to speak") "Mouth ASR ready" else mouthAsrReadyText,
+                voiceEmptyStateTitle(mouthAsrReadyText),
                 style = mobileHeadline,
                 color = mobileTextSecondary,
               )
               Text(
-                if (mouthAsrReadyText == "Ready to speak") {
-                  "Speak to the camera to send a voice turn."
-                } else {
-                  "Models are warming up. The mic will start when ready."
-                },
+                voiceEmptyStateSubtitle(mouthAsrReadyText),
                 style = mobileCallout,
                 color = mobileTextTertiary,
               )
@@ -229,6 +240,13 @@ fun VoiceTabScreen(viewModel: MainViewModel) {
         label = voiceInputLabel,
         mnnStatusText = voiceMnnAsrStatus.label,
         mnnAvailable = voiceMnnAsrStatus != LocalMnnAsrStatus.Unavailable,
+        ttsStatusText = voiceTtsReadyText,
+        ttsOutputMode = voiceTtsOutputMode,
+        onTtsOutputModeChange = viewModel::setVoiceTtsOutputMode,
+      )
+      VoiceModelInstallPanel(
+        state = voiceModelInstallState,
+        onImport = { modelPackagePicker.launch("*/*") },
       )
 
       val queueCount = micQueuedMessages.size
@@ -256,7 +274,7 @@ fun VoiceTabScreen(viewModel: MainViewModel) {
         border = BorderStroke(1.dp, if (mouthCameraState.isSpeaking) mobileSuccess.copy(alpha = 0.3f) else mobileBorder),
       ) {
         Text(
-          "$gatewayStatus · $stateText",
+          voiceCombinedStatus(gatewayStatus, stateText),
           style = mobileCallout.copy(fontWeight = FontWeight.SemiBold),
           color = stateColor,
           modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
@@ -297,7 +315,11 @@ private fun VoiceInputSelector(
   label: String,
   mnnStatusText: String,
   mnnAvailable: Boolean,
+  ttsStatusText: String,
+  ttsOutputMode: VoiceTtsOutputMode,
+  onTtsOutputModeChange: (VoiceTtsOutputMode) -> Unit,
 ) {
+  var outputExpanded by remember { mutableStateOf(false) }
   Column(
     modifier = Modifier.fillMaxWidth(),
     verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -314,11 +336,127 @@ private fun VoiceInputSelector(
         border = BorderStroke(1.dp, mobileBorder),
       ) {
         Text(
-          "$label · $mnnStatusText",
+          voiceCombinedStatus(label, mnnStatusText),
           modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
           style = mobileCaption1.copy(fontWeight = FontWeight.SemiBold),
           color = if (mnnAvailable) mobileTextSecondary else mobileWarning,
         )
+      }
+    }
+    Row(
+      modifier = Modifier.fillMaxWidth(),
+      horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+      verticalAlignment = Alignment.CenterVertically,
+    ) {
+      Surface(
+        shape = RoundedCornerShape(999.dp),
+        color = mobileSurface,
+        border = BorderStroke(1.dp, mobileBorder),
+      ) {
+        Text(
+          ttsStatusText,
+          modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
+          style = mobileCaption1.copy(fontWeight = FontWeight.SemiBold),
+          color = if (ttsStatusText == "TTS ready" || ttsStatusText == "TTS warming") mobileTextSecondary else mobileWarning,
+          maxLines = 1,
+        )
+      }
+      Box {
+        OutlinedButton(
+          onClick = { outputExpanded = true },
+          shape = RoundedCornerShape(999.dp),
+          colors = ButtonDefaults.outlinedButtonColors(contentColor = mobileTextSecondary),
+          border = BorderStroke(1.dp, mobileBorder),
+          contentPadding = PaddingValues(horizontal = 12.dp, vertical = 5.dp),
+        ) {
+          Text(
+            voiceTtsOutputLabel(ttsOutputMode),
+            style = mobileCaption1.copy(fontWeight = FontWeight.SemiBold),
+            maxLines = 1,
+          )
+        }
+        DropdownMenu(
+          expanded = outputExpanded,
+          onDismissRequest = { outputExpanded = false },
+        ) {
+          VoiceTtsOutputMode.entries.forEach { mode ->
+            DropdownMenuItem(
+              text = { Text(mode.label, style = mobileCallout) },
+              onClick = {
+                outputExpanded = false
+                onTtsOutputModeChange(mode)
+              },
+            )
+          }
+        }
+      }
+    }
+  }
+}
+
+internal fun voiceTtsOutputLabel(mode: VoiceTtsOutputMode): String = "Output: ${mode.label}"
+
+@Composable
+private fun VoiceModelInstallPanel(
+  state: VoiceModelInstallState,
+  onImport: () -> Unit,
+) {
+  val showPanel = state.isInstalling || state.errorText != null || !state.asrInstalled || !state.ttsInstalled
+  if (!showPanel) {
+    Row(
+      modifier = Modifier.fillMaxWidth(),
+      horizontalArrangement = Arrangement.Center,
+      verticalAlignment = Alignment.CenterVertically,
+    ) {
+      OutlinedButton(
+        onClick = onImport,
+        shape = RoundedCornerShape(999.dp),
+        colors = ButtonDefaults.outlinedButtonColors(contentColor = mobileTextSecondary),
+        border = BorderStroke(1.dp, mobileBorder),
+      ) {
+        Text(voiceModelInstallActionLabel(state), style = mobileCaption1.copy(fontWeight = FontWeight.SemiBold))
+      }
+    }
+    return
+  }
+
+  Surface(
+    modifier = Modifier.fillMaxWidth(),
+    shape = RoundedCornerShape(12.dp),
+    color = if (state.errorText == null) mobileSurface else mobileWarningSoft,
+    border = BorderStroke(1.dp, if (state.errorText == null) mobileBorder else mobileWarning.copy(alpha = 0.35f)),
+  ) {
+    Column(
+      modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
+      verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+      Text(
+        state.statusText,
+        style = mobileCallout.copy(fontWeight = FontWeight.SemiBold),
+        color = if (state.errorText == null) mobileTextSecondary else mobileWarning,
+      )
+      state.errorText?.takeIf { it.isNotBlank() }?.let { error ->
+        Text(
+          error,
+          style = mobileCaption1,
+          color = mobileWarning,
+          maxLines = 2,
+        )
+      }
+      if (state.isInstalling) {
+        LinearProgressIndicator(
+          modifier = Modifier.fillMaxWidth(),
+          color = mobileAccent,
+          trackColor = mobileBorder,
+        )
+      } else {
+        Button(
+          onClick = onImport,
+          shape = RoundedCornerShape(12.dp),
+          colors = ButtonDefaults.buttonColors(containerColor = mobileAccent, contentColor = Color.White),
+        ) {
+          Text(voiceModelInstallActionLabel(state), style = mobileCallout.copy(fontWeight = FontWeight.SemiBold))
+        }
       }
     }
   }
@@ -429,7 +567,7 @@ private fun VoiceTurnBubble(entry: VoiceConversationEntry) {
           color = if (isUser) mobileAccent else mobileTextSecondary,
         )
         Text(
-          if (entry.isStreaming && entry.text.isBlank()) "Listening response…" else entry.text,
+          if (entry.isStreaming && entry.text.isBlank()) "Listening response..." else entry.text,
           style = mobileCallout,
           color = mobileText,
         )
@@ -453,11 +591,43 @@ private fun VoiceThinkingBubble() {
         verticalAlignment = Alignment.CenterVertically,
       ) {
         ThinkingDots(color = mobileTextSecondary)
-        Text("OpenClaw is thinking…", style = mobileCallout, color = mobileTextSecondary)
+        Text("OpenClaw is thinking...", style = mobileCallout, color = mobileTextSecondary)
       }
     }
   }
 }
+
+internal fun voiceEmptyStateTitle(mouthAsrReadyText: String): String {
+  val lower = mouthAsrReadyText.lowercase()
+  return when {
+    mouthAsrReadyText == "Ready to speak" -> "Mouth ASR ready"
+    "unavailable" in lower && "fallback" in lower -> "Mouth ASR unavailable"
+    "unavailable" in lower -> "Mouth ASR unavailable"
+    else -> mouthAsrReadyText
+  }
+}
+
+internal fun voiceEmptyStateSubtitle(mouthAsrReadyText: String): String {
+  val lower = mouthAsrReadyText.lowercase()
+  return when {
+    mouthAsrReadyText == "Ready to speak" -> "Speak to the camera to send a voice turn."
+    "unavailable" in lower && "fallback" in lower -> "Speak normally; mouth detection is disabled for this session."
+    "unavailable" in lower -> "Local MNN ASR is unavailable. Camera preview can still run."
+    else -> "Models are warming up. The mic will start when ready."
+  }
+}
+
+internal fun voiceCombinedStatus(
+  primary: String,
+  secondary: String,
+): String = listOf(primary, secondary).filter { it.isNotBlank() }.joinToString(" · ")
+
+internal fun voiceModelInstallActionLabel(state: VoiceModelInstallState): String =
+  if (state.asrInstalled && state.ttsInstalled) {
+    "Replace voice model package"
+  } else {
+    "Import voice model package"
+  }
 
 @Composable
 private fun ThinkingDots(color: Color) {

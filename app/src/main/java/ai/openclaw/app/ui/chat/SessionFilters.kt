@@ -3,6 +3,7 @@ package ai.openclaw.app.ui.chat
 import ai.openclaw.app.chat.ChatSessionEntry
 
 private const val RECENT_WINDOW_MS = 24 * 60 * 60 * 1000L
+private const val MAX_RECENT_SESSION_CHOICES = 5
 
 /**
  * Derive a human-friendly label from a raw session key.
@@ -64,6 +65,7 @@ fun resolveSessionChoices(
   }
 
   for (entry in recent) {
+    if (result.size >= MAX_RECENT_SESSION_CHOICES) break
     if (included.add(entry.key)) {
       result.add(entry)
     }

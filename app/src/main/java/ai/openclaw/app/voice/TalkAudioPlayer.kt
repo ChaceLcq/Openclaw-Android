@@ -2,7 +2,9 @@ package ai.openclaw.app.voice
 
 import android.content.Context
 import android.media.AudioAttributes
+import android.media.AudioDeviceInfo
 import android.media.AudioFormat
+import android.media.AudioManager
 import android.media.AudioTrack
 import android.media.MediaPlayer
 import android.util.Log
@@ -15,6 +17,7 @@ import java.io.File
 
 internal class TalkAudioPlayer(
   private val context: Context,
+  private val outputModeProvider: () -> VoiceTtsOutputMode = { VoiceTtsOutputMode.BuiltInSpeaker },
 ) {
   private val lock = Any()
   private var active: ActivePlayback? = null
@@ -127,6 +130,10 @@ internal class TalkAudioPlayer(
           ).setTransferMode(AudioTrack.MODE_STREAM)
           .setBufferSizeInBytes(maxOf(minBufferSize, 4096))
           .build()
+      preferredTtsOutputDevice()?.let { device ->
+        val accepted = track.setPreferredDevice(device)
+        Log.d(TAG, "PCM preferred output mode=${outputModeProvider().rawValue} deviceType=${device.type} accepted=$accepted")
+      }
       val finished = CompletableDeferred<Unit>()
       val playback =
         ActivePlayback(
@@ -205,6 +212,10 @@ internal class TalkAudioPlayer(
               true
             }
             prepare()
+            preferredTtsOutputDevice()?.let { device ->
+              val accepted = setPreferredDevice(device)
+              Log.d(TAG, "Compressed preferred output mode=${outputModeProvider().rawValue} deviceType=${device.type} accepted=$accepted")
+            }
           }
         }
       val playback =
@@ -249,6 +260,24 @@ internal class TalkAudioPlayer(
     }
   }
 
+  private fun preferredTtsOutputDevice(): AudioDeviceInfo? {
+    val mode = outputModeProvider()
+    if (mode == VoiceTtsOutputMode.SystemDefault) return null
+    val audioManager = context.getSystemService(AudioManager::class.java) ?: return null
+    val outputs = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS).toList()
+    return when (mode) {
+      VoiceTtsOutputMode.BuiltInSpeaker ->
+        outputs.firstOrNull { it.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER }
+      VoiceTtsOutputMode.Q5Usb ->
+        outputs.firstOrNull { device ->
+          device.isUsbOutput() &&
+            device.productName?.toString()?.contains("Q5+", ignoreCase = true) == true
+        } ?: outputs.firstOrNull { it.isUsbOutput() }
+      VoiceTtsOutputMode.SystemDefault -> null
+    }
+  }
+
+  private fun AudioDeviceInfo.isUsbOutput(): Boolean = type == AudioDeviceInfo.TYPE_USB_HEADSET || type == AudioDeviceInfo.TYPE_USB_DEVICE
 }
 
 internal sealed interface TalkPlaybackMode {
